@@ -1,0 +1,20 @@
+/* Style for LoginForm */
+.wrapper {
+    height: 100vh;
+    padding-right: 50px;
+    background-image: url('lofigirl.jpg')
+}
+.login{
+    width: 300px;
+    height: min-content;
+    padding: 30px;
+    border-radius: 5px;
+    color: black;
+    background-color: aliceblue;
+    opacity: 0.8;
+
+}
+.signup-text {
+    text-align: center;
+    margin-top: 15px;
+  }
