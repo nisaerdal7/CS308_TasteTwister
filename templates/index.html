@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>Songs</h1>
+
+<!-- Display Songs -->
+<!-- 
+<ul>
+{% for song in songs %}
+    <li>
+        {{ song.track_name }} by {{ song.performer }} from album {{ song.album }} | Rating: {{ song.rating }}
+    </li>
+{% endfor %}
+</ul>
+-->
+
+<ul>
+    {% for song in songs %}
+        <li>
+            {{ song.track_name }} by {{ song.performer }} from album {{ song.album }} | Rating: {{ song.rating }}
+            <form action="/songs/{{ song.id }}/update" method="post" style="display:inline;">
+                <input type="number" name="new_rating" min="1" max="5" required>
+                <input type="submit" value="Change Rating">
+            </form>
+            <form action="/songs/{{ song.id }}/delete" method="post" style="display:inline;">
+                <input type="submit" value="Remove">
+            </form>
+        </li>
+    {% endfor %}
+    </ul>
+    
+
+
+<!-- Form to Add a Song -->
+<h2>Add a New Song</h2>
+<form action="/songs" method="post">
+    <label for="track_name">Track Name:</label>
+    <input type="text" name="track_name" required><br><br>
+
+    <label for="performer">Performer:</label>
+    <input type="text" name="performer" required><br><br>
+
+    <label for="album">Album:</label>
+    <input type="text" name="album" required><br><br>
+
+    <label for="rating">Rating (1-5):</label>
+    <input type="number" name="rating" min="1" max="5" required><br><br>
+
+    <input type="submit" value="Add Song">
+</form>
+{% endblock %}
