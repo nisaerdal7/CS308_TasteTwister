@@ -2,7 +2,8 @@
 .wrapper {
     height: 100vh;
     padding-right: 50px;
-    background-image: url('lofigirl.jpg')
+    background-image: url('lofigirl.jpg');
+    background-size: contain;
 }
 .login{
     width: 300px;
