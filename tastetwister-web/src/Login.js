@@ -99,22 +99,22 @@ function LoginForm() {
                     {isSignUp ? (
                         <p>
                             Already have an account?{' '}
-                            <button
+                            <a
                                 className='link-button'
                                 onClick={() => setIsSignUp(false)}
                             >
                                 Sign in
-                            </button>
+                            </a>
                         </p>
                     ) : (
                         <p>
                             Don't have an account?{' '}
-                            <button
+                            <a
                                 className='link-button'
                                 onClick={handleSignUpClick}
                             >
                                 Sign up
-                            </button>
+                            </a>
                         </p>
                     )}
                 </div>

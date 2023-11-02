@@ -1,4 +1,5 @@
 /* Style for LoginForm */
+
 .wrapper {
     height: 100vh;
     padding-right: 50px;
@@ -19,3 +20,8 @@
     text-align: center;
     margin-top: 15px;
   }
+.link-button {
+    text-decoration: underline; /* Add underlining */
+    color: #007BFF; /* Change text color if desired */
+    cursor: pointer; /* Add pointer cursor for hover effect */
+}
