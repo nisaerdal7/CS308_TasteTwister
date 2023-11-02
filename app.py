@@ -4,7 +4,7 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 
 # Flask configurations
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password@localhost/sys'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:backend777@35.240.109.106/tastetwister'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Silence the deprecation warning
 app.config['SECRET_KEY'] = 'your_secret_key_here'  # For session management, replace with a strong key
 
@@ -137,3 +137,4 @@ if __name__ == '__main__':
 
 with app.app_context():
     db.create_all()
+
