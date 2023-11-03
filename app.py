@@ -202,8 +202,8 @@ def delete_song(id):
 
 @app.route('/export_songs', methods=['GET'])
 def export_songs():
-    # Fetching all songs from the database
-    songs = Song.query.all()  # Assuming your model's name is "Song"
+    # Fetching songs specific to the logged-in user
+    songs = Song.query.filter_by(username=session['username']).all()
 
     def generate():
         data = StringIO()
