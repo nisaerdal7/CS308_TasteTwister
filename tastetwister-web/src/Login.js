@@ -12,21 +12,40 @@ function LoginForm() {
     
     const handleLogin = (e) => {
         e.preventDefault();
-
+    
         if (!username || !password) {
             alert('Both fields are required!');
         } else {
+            // Data to be sent in the request body
+            const data = {
+                username: username,
+                password: password
+            };
+    
             // Send a POST request to the Flask login endpoint
-            if(username=='sude'){
-                setIsAuthenticated(true);
-                navigate('/home');
-            }
-            else{
-                alert('Wrong login credentials!')
-            }
             
+            fetch('http://127.0.0.1:5000/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then((response) => {
+                if (response.ok) {
+                    return response.json();
+                    navigate('/home');
+                } else {
+                    return response.json;
+                }
+            })
+            .then((data) => {
+                // Handle the response here, e.g., show a success message
+                alert(data.message); // Show success or failure message
+            });
         }
     };
+    
 
     const handleSignUpClick = () => {
         setIsSignUp(true);
@@ -41,10 +60,28 @@ function LoginForm() {
             const data = { username, password }; // Construct the data object
     
             // Send a POST request to the Flask registration endpoint
-            navigate('/home');
+            fetch('http://127.0.0.1:5000/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then((response) => {
+                if (response.ok) {
+                    return response.json();
+                } else {
+                    throw new Error('Registration failed');
+                }
+            })
+            .then((data) => {
+                // Handle the response here, e.g., show a success message
+                alert(data.message); // Show success or failure message
+            })
         }
     };
-    return ( 
+    
+    return (
         <div className='wrapper d-flex align-items-center justify-content-end w-100'>
             <div className='login'>
                 <h2 className='mb-3'>{isSignUp ? 'Sign Up' : 'Login Form'}</h2>
@@ -110,22 +147,22 @@ function LoginForm() {
                     {isSignUp ? (
                         <p>
                             Already have an account?{' '}
-                            <button
+                            <a
                                 className='link-button'
                                 onClick={() => setIsSignUp(false)}
                             >
                                 Sign in
-                            </button>
+                            </a>
                         </p>
                     ) : (
                         <p>
                             Don't have an account?{' '}
-                            <button
+                            <a
                                 className='link-button'
                                 onClick={handleSignUpClick}
                             >
                                 Sign up
-                            </button>
+                            </a>
                         </p>
                     )}
                 </div>
