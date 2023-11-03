@@ -1,15 +1,21 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
-import App from './App';
 import LoginForm from './Login';
 import reportWebVitals from './reportWebVitals';
-
+import Home from './Home';
+import {BrowserRouter, Route, Routes } from 'react-router-dom';
 
 ReactDOM.render(
-  <React.StrictMode>
-    <LoginForm /> {/* Render the LoginForm component */}
-  </React.StrictMode>,
+
+  <BrowserRouter>
+    <div>
+    <Routes> 
+        <Route exact path="/home" element={<Home />} />
+        <Route exact path="/" element={<LoginForm />} />
+        </Routes>
+    </div>
+  </BrowserRouter>,
   document.getElementById('root')
 );
 

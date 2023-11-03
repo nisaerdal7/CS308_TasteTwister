@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import './Login.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useNavigate } from "react-router-dom";
 
 function LoginForm() {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
-
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const navigate = useNavigate();
+    
     const handleLogin = (e) => {
         e.preventDefault();
 
@@ -14,6 +17,13 @@ function LoginForm() {
             alert('Both fields are required!');
         } else {
             // Send a POST request to the Flask login endpoint
+            if(username=='sude'){
+                setIsAuthenticated(true);
+                navigate('/home');
+            }
+            else{
+                alert('Wrong login credentials!')
+            }
             
         }
     };
@@ -31,10 +41,10 @@ function LoginForm() {
             const data = { username, password }; // Construct the data object
     
             // Send a POST request to the Flask registration endpoint
-            
+            navigate('/home');
         }
     };
-    return (
+    return ( 
         <div className='wrapper d-flex align-items-center justify-content-end w-100'>
             <div className='login'>
                 <h2 className='mb-3'>{isSignUp ? 'Sign Up' : 'Login Form'}</h2>
@@ -88,6 +98,7 @@ function LoginForm() {
                                 className='form-control'
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                
                             ></input>
                         </div>
                         <button type='submit' className='btn btn-success mt-2'>

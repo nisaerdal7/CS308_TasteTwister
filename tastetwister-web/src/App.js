@@ -1,3 +1,23 @@
+/*import React from 'react';
+import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+
+import LoginForm from './Login';
+import Home from './Home';
+
+function App() {
+  return (
+    <Router>
+      <Routes> 
+      <Route exact path="/home" element={<Home />} /> {}
+        <Route exact path="/" element={<LoginForm />} />
+        </Routes>
+    </Router>
+  );
+}
+
+export default App;*/
+
+/*
 import logo from './logo.svg';
 import './App.css';
 
@@ -23,3 +43,4 @@ function App() {
 }
 
 export default App;
+*/
