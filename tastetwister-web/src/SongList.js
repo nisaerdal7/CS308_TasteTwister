@@ -1,36 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect} from 'react';
 import './SongList.css';
 
 function SongList() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [songs, setSongs] = useState([
-    { title: 'Cant Remember to Forget YouAHJSDBHASJBDHJSABDJSADBS', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
-     rating: '4' },
-    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
-    album: 'Waka Waka (This Time for Africa)', rating: '5' },
-    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
-     rating: '4' },
-    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
-    album: 'Waka Waka (This Time for Africa)', rating: '5' },
-    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
-     rating: '4' },
-    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
-    album: 'Waka Waka (This Time for Africa)', rating: '5' },
-    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
-     rating: '4' },
-    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
-    album: 'Waka Waka (This Time for Africa)', rating: '5' },
-    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
-     rating: '4' },
-    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
-    album: 'Waka Waka (This Time for Africa)', rating: '5' },
-    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
-     rating: '4' },
-    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
-    album: 'Waka Waka (This Time for Africa)', rating: '5' },
+  const [songs, setSongs] = useState([]);
 
-    // Add more songs as needed
-  ]);
+  useEffect(() => {
+    //Make a GET request to fetch the list of songs from your backend API.
+    fetch('http://127.0.0.1:5000/songs')
+      .then((response) => response.json())
+      .then((data) => {
+        console.log(data);
+    })
+      .catch((error) => console.error('Error fetching songs:', error));
+      
+  }, []);
 
   const filteredSongs = songs.filter(
     (song) =>

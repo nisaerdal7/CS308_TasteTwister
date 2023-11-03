@@ -58,7 +58,7 @@ def register():
         new_user = User(username=username, password=password)
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({'message': 'Registration successful! Please login.'})
+        return jsonify({'message': 'Successful'})
 
     # Return a JSON response for the GET request
     return jsonify({'message': 'Use POST request to register'})
@@ -70,12 +70,13 @@ def login():
         username = data.get('username')
         password = data.get('password')
         user = User.query.filter_by(username=username).first()
-
+        
         if user and user.password == password:
             session['username'] = user.username
-            return jsonify({'message': 'Login successful'})
+            
+            return jsonify({'message': 'Authenticated'})
         else:
-            return jsonify({'message': 'Login failed! Check your credentials'})
+            return jsonify({'message': 'Failed'})
 
     # Return a JSON response for the GET request
     return jsonify({'message': 'Use POST request to log in'})
@@ -85,6 +86,7 @@ def logout():
     session.pop('username', None)
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
+
 
 @app.route('/songs', methods=['GET', 'POST'])
 def songs():
@@ -102,34 +104,24 @@ def songs():
                 rating=data['rating'],
                 username=session['username']
             )
-        else:
-            track_name = request.form['track_name']
-            performer = request.form['performer']
-            album = request.form['album']
-            rating = request.form['rating']
-            new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=session['username'])
 
-        db.session.add(new_song)
-        db.session.commit()
+            db.session.add(new_song)
+            db.session.commit()
 
-        if request.headers.get('Content-Type') == 'application/json':
             return jsonify({"message": "Song added!"}), 201
-        else:
-            return redirect(url_for('songs'))
 
     songs = Song.query.filter_by(username=session['username']).all()
-    if request.headers.get('Content-Type') == 'application/json':
-        return jsonify([
-            {
-                "id": song.id,
-                "track_name": song.track_name,
-                "performer": song.performer,
-                "album": song.album,
-                "rating": song.rating
-            } for song in songs
-        ])
-    else:
-        return render_template('index.html', songs=songs)
+
+    return jsonify([
+        {
+            "id": song.id,
+            "track_name": song.track_name,
+            "performer": song.performer,
+            "album": song.album,
+            "rating": song.rating
+        } for song in songs
+    ])
+
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

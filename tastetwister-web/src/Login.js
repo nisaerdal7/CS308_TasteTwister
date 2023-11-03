@@ -31,22 +31,23 @@ function LoginForm() {
                 },
                 body: JSON.stringify(data)
             })
-            .then((response) => {
-                if (response.ok) {
-                    return response.json();
-                    navigate('/home');
-                } else {
-                    return response.json;
-                }
-            })
+            .then((response) => response.json())
             .then((data) => {
-                // Handle the response here, e.g., show a success message
-                alert(data.message); // Show success or failure message
-            });
+            if (data.message === "Authenticated") {
+                navigate('/home')
+                console.log('Successful login:', data.message);
+            // Handle successful login
+            } else {
+                console.log('Login failed:', data.message);
+                // Handle login failure
+            }
+        })
+  .catch((error) => {
+    console.error('Error:', error);
+  });
         }
     };
     
-
     const handleSignUpClick = () => {
         setIsSignUp(true);
     };
@@ -67,17 +68,21 @@ function LoginForm() {
                 },
                 body: JSON.stringify(data)
             })
-            .then((response) => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    throw new Error('Registration failed');
-                }
-            })
+            .then((response) => response.json())
             .then((data) => {
-                // Handle the response here, e.g., show a success message
-                alert(data.message); // Show success or failure message
-            })
+            if (data.message === "Successful") {
+                
+                console.log('Successful register:', data.message);
+                setIsSignUp(false)
+            // Handle successful 
+            } else {
+                console.log('Register failed:', data.message);
+                // Handle failure
+            }
+        })
+  .catch((error) => {
+    console.error('Error:', error);
+  });
         }
     };
     
