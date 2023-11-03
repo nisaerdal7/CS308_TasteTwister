@@ -4,6 +4,9 @@ import os
 import csv
 import json
 from werkzeug.utils import secure_filename
+from sqlalchemy import MetaData, Table
+from flask import Response, stream_with_context
+from io import StringIO
 
 app = Flask(__name__)
 
@@ -196,6 +199,42 @@ def delete_song(id):
         db.session.commit()
         return redirect(url_for('songs'))
     return "Error deleting song", 404
+
+@app.route('/export_songs', methods=['GET'])
+def export_songs():
+    # Fetching all songs from the database
+    songs = Song.query.all()  # Assuming your model's name is "Song"
+
+    def generate():
+        data = StringIO()
+        w = csv.writer(data)
+
+        # Write header
+        w.writerow(('Track Name', 'Performer', 'Album', 'Rating'))
+        yield data.getvalue()
+        data.seek(0)
+        data.truncate(0)
+
+        # Write song data
+        for song in songs:
+            w.writerow((
+                song.track_name,
+                song.performer,
+                song.album,
+                song.rating
+            ))
+            yield data.getvalue()
+            data.seek(0)
+            data.truncate(0)
+
+    # Add the appropriate headers and return the generated CSV data
+    headers = {
+        'Content-Disposition': 'attachment; filename=songs.csv',
+        'Content-type': 'text/csv'
+    }
+
+    return Response(stream_with_context(generate()), headers=headers)
+
 
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
