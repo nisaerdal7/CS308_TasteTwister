@@ -7,8 +7,11 @@ from werkzeug.utils import secure_filename
 from sqlalchemy import MetaData, Table
 from flask import Response, stream_with_context
 from io import StringIO
+from flask_bcrypt import Bcrypt
 
 app = Flask(__name__)
+bcrypt = Bcrypt(app)
+
 
 # Flask configurations
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:backend777@35.240.109.106/tastetwister'
@@ -49,12 +52,14 @@ def register():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        new_user = User(username=username, password=password)
+        hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')  # Hash the password
+        new_user = User(username=username, password=hashed_pw)
         db.session.add(new_user)
         db.session.commit()
         flash('Registration successful! Please login.', 'success')
         return redirect(url_for('login'))
     return render_template('register.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -62,13 +67,14 @@ def login():
         username = request.form['username']
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
-        if user and user.password == password:
+        if user and bcrypt.check_password_hash(user.password, password):  # Check hashed password
             session['username'] = user.username
             flash('Login successful!', 'success')
             return redirect(url_for('songs'))
         else:
             flash('Login failed! Check your credentials.', 'danger')
     return render_template('login.html')
+
 
 @app.route('/logout')
 def logout():
@@ -85,25 +91,21 @@ def songs():
     if request.method == 'POST':
         if request.headers.get('Content-Type') == 'application/json':
             data = request.json
-            new_song = Song(
-                track_name=data['track_name'],
-                performer=data['performer'],
-                album=data['album'],
-                rating=data['rating'],
-                username=session['username']
-            )
+            track_name = data['track_name']
+            performer = data['performer']
+            album = data['album']
+            rating = data['rating']
         else:
             track_name = request.form['track_name']
             performer = request.form['performer']
             album = request.form['album']
             rating = request.form['rating']
-            new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=session['username'])
 
-        db.session.add(new_song)
-        db.session.commit()
+        # Use the helper function to add or update the song
+        add_or_update_song(track_name, performer, album, rating, session['username'])
 
         if request.headers.get('Content-Type') == 'application/json':
-            return jsonify({"message": "Song added!"}), 201
+            return jsonify({"message": "Song added or updated!"}), 201
         else:
             return redirect(url_for('songs'))
 
@@ -121,33 +123,83 @@ def songs():
     else:
         return render_template('index.html', songs=songs)
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+def add_or_update_song(track_name, performer, album, rating, username):
+    # Check if the song already exists for the user
+    existing_song = Song.query.filter_by(track_name=track_name, performer=performer, album=album, username=username).first()
+    if existing_song:
+        existing_song.update_rating(rating)
+    else:
+        new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username)
+        db.session.add(new_song)
+    db.session.commit()
+
+
+
 def add_songs_from_csv(file_path, username):
+    invalid_rows = 0
     with open(file_path, newline='') as csvfile:
         reader = csv.DictReader(csvfile)
         for row in reader:
-            song = Song(track_name=row['track_name'], performer=row['performer'], album=row['album'], rating=int(row['rating']), username=username)
-            db.session.add(song)
+            try:
+                track_name = row['track_name']
+                performer = row['performer']
+                album = row['album']
+                rating = int(row['rating'])
+                
+                # Validate rating range and that other fields are strings
+                if (not isinstance(track_name, str) or 
+                    not isinstance(performer, str) or 
+                    not isinstance(album, str) or 
+                    rating < 1 or rating > 5):
+                    raise ValueError
+                
+                add_or_update_song(track_name, performer, album, rating, username)
+
+            except (KeyError, ValueError):  
+                invalid_rows += 1
+                continue  # skips the current item and moves to the next
+
         db.session.commit()
+        
+        # Flash a message if some rows were skipped
+        if invalid_rows > 0:
+            flash('Some imports did not meet the required format', 'warning')
 
 def add_songs_from_json(file_path, username):
+    invalid_items = 0
     with open(file_path) as jsonfile:
         data = json.load(jsonfile)
         for item in data:
             try:
                 track_name = item['track_name']
-                performer = item['performer']  # this line may raise the KeyError
+                performer = item['performer']
                 album = item['album']
                 rating = int(item['rating'])
-            except KeyError as e:
-                print(f"KeyError: {e} not found in item: {item}")
+
+                # Validate rating range and that other fields are strings
+                if (not isinstance(track_name, str) or 
+                    not isinstance(performer, str) or 
+                    not isinstance(album, str) or 
+                    rating < 1 or rating > 5):
+                    raise ValueError
+                
+                add_or_update_song(track_name, performer, album, rating, username)
+
+            except (KeyError, ValueError):  
+                invalid_items += 1
                 continue  # skips the current item and moves to the next
 
-            song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username)
-            db.session.add(song)
-    db.session.commit()
+        db.session.commit()
+
+        # Flash a message if some items were invalid
+        if invalid_items > 0:
+            flash('Some imports did not meet the required format', 'warning')
+
 
 @app.route('/upload_songs', methods=['POST'])
 def upload_songs():
