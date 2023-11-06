@@ -3,9 +3,9 @@ import './SongList.css';
 
 function SongList() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [songs, setSongs] = useState([]);
+  //const [songs, setSongs] = useState([]);
 
-  useEffect(() => {
+  /*useEffect(() => {
     //Make a GET request to fetch the list of songs from your backend API.
     fetch('http://127.0.0.1:5000/songs')
       .then((response) => response.json())
@@ -14,7 +14,51 @@ function SongList() {
     })
       .catch((error) => console.error('Error fetching songs:', error));
       
-  }, []);
+  }, []);*/
+  const [songs, setSongs] = useState([
+    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
+     rating: '4' },
+    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
+    album: 'Waka Waka (This Time for Africa)', rating: '5' },
+    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
+     rating: '4' },
+    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
+    album: 'Waka Waka (This Time for Africa)', rating: '5' },
+    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
+     rating: '4' },
+    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
+    album: 'Waka Waka (This Time for Africa)', rating: '5' },
+    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
+     rating: '4' },
+    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
+    album: 'Waka Waka (This Time for Africa)', rating: '5' },
+    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
+     rating: '4' },
+    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
+    album: 'Waka Waka (This Time for Africa)', rating: '5' },
+    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
+     rating: '4' },
+    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
+    album: 'Waka Waka (This Time for Africa)', rating: '5' },
+    
+  ]);
+
+  const [isPopupVisible, setPopupVisible] = useState(false);
+  const showPopup = () => {
+    setPopupVisible(true);
+  };
+
+  const hidePopup = () => {
+    setPopupVisible(false);
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // You can now work with the selected file (e.g., upload it to the server or process it)
+      console.log('Selected file:', file);
+    }
+  };
 
   const filteredSongs = songs.filter(
     (song) =>
@@ -30,7 +74,7 @@ function SongList() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <button className="add-button">ADD</button> {/* Added "ADD" button */}
+        <button className="add-button" onClick={showPopup}>+</button>
       </div>
 
       <div className="song-list">
@@ -55,6 +99,27 @@ function SongList() {
           </tbody>
         </table>
       </div>
+        {isPopupVisible && (
+        <div className="popup">
+        <button className="close-button" onClick={hidePopup}>
+          X
+        </button>
+        <div className="button-container">
+          <label className="upload-button" htmlFor="fileInput">
+            File Upload
+          </label>
+          <input
+            type="file"
+            id="fileInput"
+            accept=".csv"
+            style={{ display: 'none' }}
+            onChange={handleFileUpload}
+          />
+        </div>
+            <button>Manual Enter</button>
+    </div>
+)}
+
     </div>
   );
 }

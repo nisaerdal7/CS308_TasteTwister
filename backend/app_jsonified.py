@@ -8,8 +8,10 @@ from sqlalchemy import MetaData, Table
 from flask import Response, stream_with_context
 from io import StringIO
 from flask_bcrypt import Bcrypt
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app) 
 bcrypt = Bcrypt(app)
 
 
@@ -72,6 +74,7 @@ def login():
         user = User.query.filter_by(username=username).first()
         if user and bcrypt.check_password_hash(user.password, password):
             session['username'] = user.username
+            print("yenilendim")
             return jsonify({'message': 'Login successful!'})
         else:
             return jsonify({'message': 'Login failed! Check your credentials.'})

@@ -33,7 +33,7 @@ function LoginForm() {
             })
             .then((response) => response.json())
             .then((data) => {
-            if (data.message === "Authenticated") {
+            if (data.message === "Login successful!") {
                 navigate('/home')
                 console.log('Successful login:', data.message);
             // Handle successful login
@@ -54,37 +54,37 @@ function LoginForm() {
 
     const handleSignUp = (e) => {
         e.preventDefault();
-    
+      
         if (!username || !password) {
-            alert('Both fields are required for signup.');
+          alert('Both fields are required for signup.');
         } else {
-            const data = { username, password }; // Construct the data object
-    
-            // Send a POST request to the Flask registration endpoint
-            fetch('http://127.0.0.1:5000/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
+          const data = { username, password }; // Construct the data object
+      
+          // Send a POST request to the Flask registration endpoint
+          fetch('http://127.0.0.1:5000/register', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data),
+          })
             .then((response) => response.json())
             .then((data) => {
-            if (data.message === "Successful") {
-                
+              if (data.message === 'Registration successful!') {
                 console.log('Successful register:', data.message);
-                setIsSignUp(false)
-            // Handle successful 
-            } else {
+                setIsSignUp(false);
+                // Handle successful registration
+              } else {
                 console.log('Register failed:', data.message);
-                // Handle failure
-            }
-        })
-  .catch((error) => {
-    console.error('Error:', error);
-  });
+                // Handle registration failure
+              }
+            })
+            .catch((error) => {
+              console.error('Error:', error);
+            });
         }
-    };
+      };
+      
     
     return (
         <div className='wrapper d-flex align-items-center justify-content-end w-100'>

@@ -4,8 +4,11 @@
     height: 100vh;
     padding-right: 50px;
     background-image: url('lofigirl.jpg');
-    background-size: contain;
+    background-size: cover; /* Use cover to make the image cover the entire container */
+    background-position: center; /* Center the image horizontally and vertically */
+    background-repeat: no-repeat; /* Prevent image repetition */
 }
+
 .login{
     width: 300px;
     height: min-content;

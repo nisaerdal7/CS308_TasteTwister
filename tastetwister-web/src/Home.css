@@ -8,6 +8,7 @@
     justify-content: center;
     height: 100vh; /* This will center the content vertically in the viewport */
     text-align: center; /* Center text horizontally */
+    
   }
   
   h1 {
@@ -15,7 +16,13 @@
     color: #333;
   }
   
-  p {
+  /*p {
     font-size: 1.2rem;
-    color: #666;
+    color: rgb(67, 35, 35);
+  }*/
+  body {
+    background-image: url('lofibackground.jpg');
+    background-size: cover;
+    background-position: center;
+  
   }

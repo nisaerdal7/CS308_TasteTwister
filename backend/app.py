@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
+'''from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 import os
 import csv
@@ -73,7 +73,7 @@ def login():
         
         if user and user.password == password:
             session['username'] = user.username
-            
+            print("geldim")
             return jsonify({'message': 'Authenticated'})
         else:
             return jsonify({'message': 'Failed'})
@@ -245,4 +245,4 @@ if __name__ == '__main__':
 
 # This section will create all tables in the database if they don't exist.
 with app.app_context():
-    db.create_all()
+    db.create_all()'''
