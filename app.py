@@ -8,6 +8,11 @@ from sqlalchemy import MetaData, Table
 from flask import Response, stream_with_context
 from io import StringIO
 from flask_bcrypt import Bcrypt
+import requests
+from requests.auth import HTTPBasicAuth
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+import base64
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -19,6 +24,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Silence the deprecation 
 app.config['SECRET_KEY'] = 'your_secret_key_here'
 app.config['UPLOAD_FOLDER'] = 'uploads'  # Folder to save uploaded files
 ALLOWED_EXTENSIONS = {'csv', 'json'}
+
 
 db = SQLAlchemy(app)
 
@@ -40,6 +46,39 @@ class Song(db.Model):
     def update_rating(self, new_rating):
         self.rating = new_rating
         db.session.commit()
+
+
+# Your application's Client ID and Client Secret
+SPOTIFY_CLIENT_ID = "8a9fb2659bdb46d6815580ec3ff4d2c6"
+SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
+
+# Initialize Spotify client with credentials
+client_credentials_manager = SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET)
+sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+
+# Function to get the Spotify access token
+def get_spotify_token(client_id, client_secret):
+    url = "https://accounts.spotify.com/api/token"
+    headers = {}
+    data = {}
+
+    # Encode as Base64
+    message = f"{client_id}:{client_secret}"
+    message_bytes = message.encode('ascii')
+    base64_bytes = base64.b64encode(message_bytes)
+    base64_message = base64_bytes.decode('ascii')
+
+    headers['Authorization'] = f"Basic {base64_message}"
+    data['grant_type'] = "client_credentials"
+
+    r = requests.post(url, headers=headers, data=data)
+
+    if r.status_code != 200:
+        raise Exception("Cannot get token")
+
+    token = r.json().get('access_token')
+    return token
+
 
 @app.route('/')
 def home():
@@ -81,6 +120,28 @@ def logout():
     session.pop('username', None)
     flash('You have been logged out.', 'success')
     return redirect(url_for('login'))
+
+def search_spotify(track_name, performer=None):
+    """
+    Search for a track on Spotify and return the first result's details.
+    """
+    query = f"track:{track_name}"
+    if performer:
+        query += f" artist:{performer}"
+    
+    results = sp.search(q=query, limit=1, type='track')
+    items = results['tracks']['items']
+    
+    if items:
+        # Just taking the first result here
+        track_info = items[0]
+        return {
+            "track_name": track_info['name'],
+            "performer": ', '.join(artist['name'] for artist in track_info['artists']),
+            "album": track_info['album']['name']
+        }
+    else:
+        return None
 
 @app.route('/songs', methods=['GET', 'POST'])
 def songs():
@@ -128,16 +189,72 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def add_or_update_song(track_name, performer, album, rating, username):
-    # Check if the song already exists for the user
+def add_or_update_song(user_track_name, user_performer, user_album, rating, username):
+    """
+    Add a new song or update an existing one with information from Spotify.
+    If the song is found on Spotify, use the Spotify data to add to the database.
+    If the song is not found, inform the user and do not add to the database.
+    """
+    # Attempt to fetch song details from Spotify using user's input
+    spotify_song = search_spotify(user_track_name, user_performer)
+    
+    if spotify_song:
+        # Use the Spotify data to override the user input
+        track_name = spotify_song.get('track_name')
+        performer = spotify_song.get('performer')
+        album = spotify_song.get('album')
+
+    # Check if the song already exists in the database for this user
     existing_song = Song.query.filter_by(track_name=track_name, performer=performer, album=album, username=username).first()
+    
     if existing_song:
-        existing_song.update_rating(rating)
+        # Update the existing song with Spotify data
+        existing_song.rating = rating  # Only the rating is updated as it's user-specific
     else:
+        # Add a new song with Spotify data
         new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username)
         db.session.add(new_song)
+    
     db.session.commit()
 
+# Function to search Spotify for a track given a track name and performer
+def search_spotify(track_name, performer):
+    token = get_spotify_token(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+    
+    # Encode the query string
+    query = f"track:{track_name} artist:{performer}"
+    params = {
+        "q": query,
+        "type": "track",
+        "limit": 1  # Assuming we only want one result
+    }
+
+    response = requests.get("https://api.spotify.com/v1/search", headers=headers, params=params)
+
+    if response.status_code != 200:
+        # Print or log the response text from Spotify for debugging
+        print("Failed to fetch data from Spotify. Status code:", response.status_code)
+        print("Response:", response.text)
+        raise Exception("Failed to fetch data from Spotify. Response: " + response.text)
+
+    # Parse the results and get the first item
+    results = response.json()
+    tracks = results.get('tracks', {}).get('items', [])
+
+    if not tracks:
+        return None
+
+    # Assuming the first track is the one we want
+    first_track = tracks[0]
+
+    return {
+        'track_name': first_track['name'],
+        'performer': first_track['artists'][0]['name'],  # Assuming we take the first artist
+        'album': first_track['album']['name']
+    }
 
 
 def add_songs_from_csv(file_path, username):
