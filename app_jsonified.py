@@ -8,6 +8,8 @@ from sqlalchemy import MetaData, Table
 from flask import Response, stream_with_context
 from io import StringIO
 from flask_bcrypt import Bcrypt
+import secrets
+
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -26,7 +28,9 @@ class User(db.Model):
     __tablename__ = 'users'
     username = db.Column(db.String(255), primary_key=True)
     password = db.Column(db.Text, nullable=False)  # In a real-world app, hash the password
+    token = db.Column(db.String(255), nullable=False)  # Assuming token should be non-nullable
     songs = db.relationship('Song', backref='user', lazy=True)
+
 
 class Song(db.Model):
     __tablename__ = 'songs'
@@ -51,14 +55,20 @@ def home():
 @app.route('/register', methods=['POST'])
 def register():
     if request.method == 'POST':
-        data = request.get_json()  
+        data = request.get_json()
         username = data.get('username')
         password = data.get('password')
         hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
-        new_user = User(username=username, password=hashed_pw)
+        
+        # Generate a unique token for the new user
+        unique_token = secrets.token_hex(16)
+        
+        # Include the token when creating the new User object
+        new_user = User(username=username, password=hashed_pw, token=unique_token)
+        
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({'message': 'Registration successful!'})
+        return jsonify({'message': 'Registration successful!', 'token': unique_token})
     
     return jsonify({'message': 'Use POST request to register'})
 
@@ -70,13 +80,20 @@ def login():
         username = data.get('username')
         password = data.get('password')
         user = User.query.filter_by(username=username).first()
+        
         if user and bcrypt.check_password_hash(user.password, password):
             session['username'] = user.username
-            return jsonify({'message': 'Login successful!'})
+            # Return username and token in the response
+            return jsonify({
+                'message': 'Login successful!',
+                'username': user.username,
+                'token': user.token
+            })
         else:
             return jsonify({'message': 'Login failed! Check your credentials.'})
     
     return jsonify({'message': 'Use POST request to log in'})
+
 
 
 @app.route('/logout')

@@ -15,6 +15,8 @@ from spotipy.oauth2 import SpotifyClientCredentials
 import base64
 import spotifysearch
 from spotifysearch.client import Client
+import secrets
+
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -34,7 +36,9 @@ class User(db.Model):
     __tablename__ = 'users'
     username = db.Column(db.String(255), primary_key=True)
     password = db.Column(db.Text, nullable=False)  # In a real-world app, hash the password
+    token = db.Column(db.String(255), nullable=False)  # Assuming token should be non-nullable
     songs = db.relationship('Song', backref='user', lazy=True)
+
 
 class Song(db.Model):
     __tablename__ = 'songs'
@@ -62,7 +66,12 @@ def register():
         username = request.form['username']
         password = request.form['password']
         hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')  # Hash the password
-        new_user = User(username=username, password=hashed_pw)
+        # Generate a unique token for the new user
+        unique_token = secrets.token_hex(16)
+        
+        # Include the token when creating the new User object
+        new_user = User(username=username, password=hashed_pw, token=unique_token)
+        
         db.session.add(new_user)
         db.session.commit()
         flash('Registration successful! Please login.', 'success')
