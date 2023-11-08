@@ -2,6 +2,7 @@
   "name": "tastetwister-web",
   "version": "0.1.0",
   "private": true,
+  "proxy": "http://127.0.0.1:5000",
   "dependencies": {
     "@material-ui/core": "^4.12.4",
     "@reduxjs/toolkit": "^1.9.7",

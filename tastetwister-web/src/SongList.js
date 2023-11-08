@@ -1,14 +1,17 @@
 import React, { useState, useEffect} from 'react';
 import './SongList.css';
 
-function SongList() {
+
+function SongList(props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [songs, setSongs] = useState([]);
-
+  const {user} = props;
   useEffect(() => {
     // Fetch the user's songs when the component mounts
-    fetch('http://127.0.0.1:5000/songs', {
+    const username = 'yunus';
+    fetch('http://127.0.0.1:5000/songs?username='+username, {
       method: 'GET',
+      credentials: 'include'
       
     })
       .then((response) => response.json())
@@ -31,8 +34,8 @@ function SongList() {
   const [isManualPopupVisible, setManualPopupVisible] = useState(false);
 
   const [songEntry, setSongEntry] = useState({
-    title: "",
-    artist: "",
+    track_name: "",
+    performer: "",
     album: "",
     rating: "",
   });
@@ -80,7 +83,7 @@ function SongList() {
 
   const submitSong = () => {
     // Check if any of the fields are empty
-    if (!songEntry.title || !songEntry.artist || !songEntry.album || !songEntry.rating) {
+    if (!songEntry.track_name || !songEntry.performer || !songEntry.album || !songEntry.rating) {
       // Display a warning message and return early
       alert("All fields are required for submit.");
       return;
@@ -125,7 +128,7 @@ function SongList() {
             </tr>
           </thead>
           <tbody>
-            {filteredSongs.map((song, index) => (
+          {filteredSongs.map((song, index) => (
               <tr key={index}>
                 <td className="title-column">{song.track_name}</td>
                 <td className="column">{song.performer}</td>
@@ -178,13 +181,13 @@ function SongList() {
                 <input
                 type="text"
                 placeholder="Title..."
-                value={songEntry.title}
+                value={songEntry.track_name}
                 onChange={(e) => handleSongInputChange(e, "title")}
                 />
                 <input
                 type="text"
                 placeholder="Artist..."
-                value={songEntry.artist}
+                value={songEntry.performer}
                 onChange={(e) => handleSongInputChange(e, "artist")}
                 />
             </div>
