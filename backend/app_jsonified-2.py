@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
 from flask_sqlalchemy import SQLAlchemy
 import os
+import jwt
 import csv
 import json
 from werkzeug.utils import secure_filename
@@ -9,9 +10,11 @@ from flask import Response, stream_with_context
 from io import StringIO
 from flask_bcrypt import Bcrypt
 import secrets
+from flask_cors import CORS
 
 
 app = Flask(__name__)
+CORS(app, supports_credentials=True)
 bcrypt = Bcrypt(app)
 
 
@@ -83,11 +86,12 @@ def login():
         
         if user and bcrypt.check_password_hash(user.password, password):
             session['username'] = user.username
+            #token = jwt.encode({'username': username}, app.config['SECRET_KEY'], algorithm='HS256')
             # Return username and token in the response
             return jsonify({
                 'message': 'Login successful!',
                 'username': user.username,
-                'token': user.token
+                
             })
         else:
             return jsonify({'message': 'Login failed! Check your credentials.'})
@@ -104,21 +108,23 @@ def logout():
 
 @app.route('/songs', methods=['GET', 'POST'])
 def songs():
-    if 'username' not in session:
-        return jsonify({'message': 'Please log in first.'}), 401
-
+    '''if 'username' not in session:
+        return jsonify({'message': 'Please log in first.'}), 401'''
+    #print('burdayım')
     if request.method == 'POST':
         data = request.get_json()
         track_name = data['track_name']
         performer = data['performer']
         album = data['album']
         rating = data['rating']
+        user = data['username']
 
         # Use the helper function to add or update the song
-        add_or_update_song(track_name, performer, album, rating, session['username'])
+        add_or_update_song(track_name, performer, album, rating, user)
         return jsonify({'message': 'Song added or updated!'}), 201
-
-    songs = Song.query.filter_by(username=session['username']).all()
+    username = request.args.get('username')
+    #print(username)
+    songs = Song.query.filter_by(username=username).all()
     return jsonify([
         {
             "id": song.id,
@@ -158,15 +164,15 @@ def add_songs_from_csv(file_path, username):
                 rating = int(row['rating'])
                 
                 # Validate rating range and that other fields are strings
-                if (not isinstance(track_name, str) or 
-                    not isinstance(performer, str) or 
-                    not isinstance(album, str) or 
+                if (not isinstance(track_name, str) or
+                    not isinstance(performer, str) or
+                    not isinstance(album, str) or
                     rating < 1 or rating > 5):
                     raise ValueError
                 
                 add_or_update_song(track_name, performer, album, rating, username)
 
-            except (KeyError, ValueError):  
+            except (KeyError, ValueError):
                 invalid_rows += 1
                 continue  # skips the current item and moves to the next
 
@@ -188,15 +194,15 @@ def add_songs_from_json(file_path, username):
                 rating = int(item['rating'])
 
                 # Validate rating range and that other fields are strings
-                if (not isinstance(track_name, str) or 
-                    not isinstance(performer, str) or 
-                    not isinstance(album, str) or 
+                if (not isinstance(track_name, str) or
+                    not isinstance(performer, str) or
+                    not isinstance(album, str) or
                     rating < 1 or rating > 5):
                     raise ValueError
                 
                 add_or_update_song(track_name, performer, album, rating, username)
 
-            except (KeyError, ValueError):  
+            except (KeyError, ValueError):
                 invalid_items += 1
                 continue  # skips the current item and moves to the next
 
