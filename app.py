@@ -146,13 +146,9 @@ def add_or_update_song(user_track_name, user_performer, user_album, rating, user
     If the song is found on Spotify, use the Spotify data to add to the database.
     If the song is not found, inform the user and do not add to the database.
     """
-    # Initialize variables with user input as default
-    track_name = str(user_track_name)
-    performer = str(user_performer)
-    album = user_album
 
     myclient = Client(SPOTIFY_CLIENT_ID , SPOTIFY_CLIENT_SECRET)
-    track = myclient.search(user_track_name + user_performer).get_tracks()[0]
+    track = myclient.search(user_track_name + user_performer + user_album).get_tracks()[0]
     
     track_name = track.name
     performer = track.artists[0].name
