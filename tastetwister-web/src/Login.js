@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import './Login.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { useNavigate } from "react-router-dom";
-//import { useUser } from './UserContext';
+import { useUser } from './UserContext';
 
 function LoginForm() {
     const [username, setUsername] = useState('');
@@ -10,7 +10,7 @@ function LoginForm() {
     const [isSignUp, setIsSignUp] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const navigate = useNavigate();
-    //const { user, setUser } = useUser();
+    const { user, setUser } = useUser();
 
     const handleLogin = (e) => {
         e.preventDefault();
@@ -36,7 +36,7 @@ function LoginForm() {
             .then((response) => response.json())
             .then((data) => {
             if (data.message === "Login successful!") {
-                
+                setUser(data.username)
                 navigate('/home')
                 console.log('Successful login:', data.message);
             // Handle successful login

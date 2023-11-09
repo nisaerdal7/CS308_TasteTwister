@@ -8,15 +8,14 @@ function SongList(props) {
   const {user} = props;
   useEffect(() => {
     // Fetch the user's songs when the component mounts
-    const username = 'yunus';
-    fetch('http://127.0.0.1:5000/songs?username='+username, {
+    console.log(user)
+    fetch('http://127.0.0.1:5000/songs?username='+user, {
       method: 'GET',
       credentials: 'include'
       
     })
       .then((response) => response.json())
       .then((data) => {
-        console.log("annen",data);
         setSongs(data);
       })
       .catch((error) => console.error('Error fetching songs:', error));
@@ -86,6 +85,7 @@ function SongList(props) {
     if (!songEntry.track_name || !songEntry.performer || !songEntry.album || !songEntry.rating) {
       // Display a warning message and return early
       alert("All fields are required for submit.");
+    
       return;
     }
   

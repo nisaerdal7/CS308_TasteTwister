@@ -60,7 +60,7 @@
   }
   
   .title-column {
-    width: 377px; /* Adjust the width to give more space to "title" */
+    width: 310px; /* Adjust the width to give more space to "title" */
     text-align: left;
     display: inline-block;
     color: rgb(160, 160, 160);
