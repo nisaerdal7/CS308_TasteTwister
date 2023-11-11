@@ -2,14 +2,15 @@ import React, { useState, useEffect} from 'react';
 import './SongList.css';
 
 
-function SongList(props) {
+function SongList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [songs, setSongs] = useState([]);
-  const {user} = props;
+  
   useEffect(() => {
     // Fetch the user's songs when the component mounts
-    console.log(user)
-    fetch('http://127.0.0.1:5000/songs?username='+user, {
+    const storedUsername = localStorage.getItem('username');
+    console.log(storedUsername)
+    fetch('http://127.0.0.1:5000/songs?username='+storedUsername, {
       method: 'GET',
       credentials: 'include'
       

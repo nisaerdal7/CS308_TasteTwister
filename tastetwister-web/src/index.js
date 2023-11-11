@@ -5,19 +5,19 @@ import LoginForm from './Login';
 import reportWebVitals from './reportWebVitals';
 import Home from './Home';
 import {BrowserRouter, Route, Routes } from 'react-router-dom';
-import{UserProvider} from './UserContext'
+
 ReactDOM.render(
   
   <BrowserRouter>
     <div>
-    <UserProvider>
+    
       <Routes> 
     
         <Route exact path="/home" element={<Home />} />
         <Route exact path="/" element={<LoginForm />} />
       
         </Routes>
-    </UserProvider>
+    
     </div>
   </BrowserRouter>,
   document.getElementById('root')
