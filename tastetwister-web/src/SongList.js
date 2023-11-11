@@ -20,7 +20,7 @@ function SongList() {
         setSongs(data);
       })
       .catch((error) => console.error('Error fetching songs:', error));
-  }, []);
+  }, [songs]);
 
   /*const [songs, setSongs] = useState([
     { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
