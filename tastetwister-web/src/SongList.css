@@ -60,16 +60,29 @@
   }
   
   .title-column {
-    width: 310px; /* Adjust the width to give more space to "title" */
+    width: 290px; /* Adjust the width to give more space to "title" */
     text-align: left;
     display: inline-block;
     color: rgb(160, 160, 160);
   }
   
   .column {
-    width: 160px; /* Distribute the remaining width equally among "artist," "album," and "rating" */
+    width: 180px; /* Distribute the remaining width equally among "artist," "album," and "rating" */
     text-align: left;
     display: inline-block;
+    color: rgb(160, 160, 160);
+  }
+  .rating-column {
+    width: 100px; /* Distribute the remaining width equally among "artist," "album," and "rating" */
+    text-align: center;
+    display: inline-block;
+    color: rgb(160, 160, 160);
+  }
+
+  .actions-column{
+    width: 80px;
+    text-align: left;
+    
     color: rgb(160, 160, 160);
   }
   
@@ -208,7 +221,7 @@
     border: 1px solid rgb(0, 0, 0);
     border-radius: 8px;
   }
-
+  
   .rating-select { /* Apply styles to both input and select */
     background-color: rgb(0, 0, 0, 0.8);
     border: 1px double rgb(0, 0, 0);
@@ -222,6 +235,23 @@
     box-shadow: none;
   }
   
+  .ratinge-select {
+    background-color: rgba(0, 0, 0, 0.818);
+    border: 1px double #fff;
+    color: rgb(160, 160, 160);
+    padding: 0px; /* Adjust padding as needed */
+    width: 100%;
+    height: 45px;
+    margin-top: 40px;
+    cursor: pointer;
+    box-shadow: none;
+  }
+  
+  .ratinge-select option {
+    background-color: rgba(0, 0, 0, 0.8); /* Adjust alpha value if needed */
+    color: rgb(160, 160, 160);
+  }
+ 
   
 
 
