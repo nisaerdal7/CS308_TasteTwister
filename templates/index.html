@@ -4,15 +4,6 @@
 <h1>Songs</h1>
 
 <!-- Display Songs -->
-<!-- 
-<ul>
-{% for song in songs %}
-    <li>
-        {{ song.track_name }} by {{ song.performer }} from album {{ song.album }} | Rating: {{ song.rating }}
-    </li>
-{% endfor %}
-</ul>
--->
 <ul>
     {% for song in songs %}
         <li>
@@ -33,16 +24,12 @@
 <form action="/songs" method="post">
     <label for="track_name">Track Name:</label>
     <input type="text" name="track_name" required><br><br>
-
     <label for="performer">Performer:</label>
     <input type="text" name="performer" required><br><br>
-
     <label for="album">Album:</label>
     <input type="text" name="album" required><br><br>
-
     <label for="rating">Rating (1-5):</label>
     <input type="number" name="rating" min="1" max="5" required><br><br>
-
     <input type="submit" value="Add Song">
 </form>
 
@@ -53,8 +40,17 @@
     <input type="submit" value="Upload">
 </form>
 
+<!-- Form to Fetch Songs from Spotify Playlist -->
+<h2>Add Songs from Spotify Playlist</h2>
+<form action="/import_spotify_playlist" method="POST">
+    <label for="playlist_url">Spotify Playlist URL:</label>
+    <input type="text" name="playlist_url" required><br><br>
+    <input type="submit" value="Import Playlist">
+</form>
+
 <!-- Button to Export Songs to CSV -->
 <h2>Export Songs</h2>
 <a href="/export_songs" class="btn btn-primary">Export Songs to CSV</a>
 
 {% endblock %}
+

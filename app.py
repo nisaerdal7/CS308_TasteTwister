@@ -12,10 +12,12 @@ import requests
 from requests.auth import HTTPBasicAuth
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
+from spotipy.oauth2 import SpotifyOAuth
 import base64
 import spotifysearch
 from spotifysearch.client import Client
 import secrets
+import re
 
 
 app = Flask(__name__)
@@ -29,6 +31,16 @@ app.config['SECRET_KEY'] = 'your_secret_key_here'
 app.config['UPLOAD_FOLDER'] = 'uploads'  # Folder to save uploaded files
 ALLOWED_EXTENSIONS = {'csv', 'json'}
 
+# Your application's Client ID and Client Secret
+SPOTIFY_CLIENT_ID = "8a9fb2659bdb46d6815580ec3ff4d2c6"
+SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
+SPOTIFY_REDIRECT_URI = "http://localhost:5000/songs"
+SPOTIFY_SCOPE = 'playlist-read-private playlist-read-collaborative'
+
+sp_oauth = SpotifyOAuth(client_id=SPOTIFY_CLIENT_ID,
+                        client_secret=SPOTIFY_CLIENT_SECRET,
+                        redirect_uri=SPOTIFY_REDIRECT_URI,
+                        scope=SPOTIFY_SCOPE)
 
 db = SQLAlchemy(app)
 
@@ -93,7 +105,6 @@ def login():
             flash('Login failed! Check your credentials.', 'danger')
     return render_template('login.html')
 
-
 @app.route('/logout')
 def logout():
     session.pop('username', None)
@@ -141,38 +152,39 @@ def songs():
     else:
         return render_template('index.html', songs=songs)
 
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# Your application's Client ID and Client Secret
-SPOTIFY_CLIENT_ID = "8a9fb2659bdb46d6815580ec3ff4d2c6"
-SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
+# Initialize the Spotify client with your credentials
+client_credentials_manager = SpotifyClientCredentials(client_id=SPOTIFY_CLIENT_ID, client_secret=SPOTIFY_CLIENT_SECRET)
+sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
 
 def add_or_update_song(user_track_name, user_performer, user_album, rating, username):
-    """
-    Add a new song or update an existing one with information from Spotify.
-    If the song is found on Spotify, use the Spotify data to add to the database.
-    If the song is not found, inform the user and do not add to the database.
-    """
-
+    #Add a new song or update an existing one with verified information from Spotify.
     myclient = Client(SPOTIFY_CLIENT_ID , SPOTIFY_CLIENT_SECRET)
-    track = myclient.search(user_track_name + user_performer + user_album).get_tracks()[0]
-    
-    track_name = track.name
-    performer = track.artists[0].name
-    album =  track.album.name
+    search_result = myclient.search(user_track_name + " " + user_performer + " " + user_album)
+    tracks = search_result.get_tracks()
+    if tracks:
+        track = tracks[0]
+        # Now you can process the track as before
+        track_name = track.name
+        performer = track.artists[0].name
+        album = track.album.name
 
-    # Check if the song already exists in the database for this user
-    existing_song = Song.query.filter_by(track_name=track_name, performer=performer, album=album, username=username).first()
+        # Check if the song already exists in the database for this user
+        existing_song = Song.query.filter_by(track_name=track_name, performer=performer, album=album, username=username).first()
     
-    if existing_song:
-        # Update the existing song with Spotify data
-        existing_song.rating = rating  # Only the rating is updated as it's user-specific
+        if existing_song:
+            # Update the existing song with Spotify data
+            existing_song.rating = rating  # Only the rating is updated as it's user-specific
+        else:
+            # Add a new song with Spotify data
+            new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username)
+            db.session.add(new_song)
     else:
-        # Add a new song with Spotify data
-        new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username)
-        db.session.add(new_song)
+        # Handle the case when no tracks are found
+        flash('No tracks found on Spotify with the provided details.', 'warning')
+        # You can redirect the user or take any other action as required
     
     db.session.commit()
 
@@ -268,6 +280,94 @@ def upload_songs():
         flash('Unsupported file type', 'danger')
 
     return redirect(url_for('songs'))
+
+@app.route('/login_spotify')
+def login_spotify():
+    auth_url = sp_oauth.get_authorize_url()
+    return redirect(auth_url)
+
+@app.route('/callback')
+def spotify_callback():
+    code = request.args.get('code')
+    token_info = sp_oauth.get_access_token(code, as_dict=True)  # Ensure this is a dictionary
+    session['token_info'] = json.dumps(token_info)  # Serialize and store as a string
+    return redirect(url_for('songs'))
+
+@app.route('/import_spotify_playlist', methods=['POST'])
+def import_spotify_playlist():
+    playlist_url = request.form.get('playlist_url')
+    if not playlist_url:
+        flash('Please provide a Spotify Playlist URL.', 'danger')
+        return redirect(url_for('songs'))
+    
+    # Extract playlist ID from the URL using a regular expression
+    match = re.search(r'playlist/(\w+)', playlist_url)
+    if not match:
+        flash('Invalid Spotify Playlist URL provided.', 'danger')
+        return redirect(url_for('songs'))
+
+    playlist_id = match.group(1)
+    if not session.get('token_info'):
+        flash('You need to log in first!', 'danger')
+        return redirect(url_for('login_spotify'))
+    
+    token_info = json.loads(session.get('token_info', '{}'))  # Deserialize, with a default of an empty dict
+    if 'access_token' in token_info:
+        sp = spotipy.Spotify(auth=token_info['access_token'])
+
+    try:
+        results = sp.playlist_tracks(playlist_id)
+    except spotipy.exceptions.SpotifyException as e:
+        flash(str(e), 'danger')
+        return redirect(url_for('songs'))
+
+    # Loop through the tracks and add each to the database
+    for item in results['items']:
+        track = item['track']
+        track_name = track['name']
+        performer = ', '.join(artist['name'] for artist in track['artists'])
+        album = track['album']['name']
+        rating = 1  # Default rating, modify as needed
+        
+        # Use the helper function to add or update the song
+        add_or_update_song(track_name, performer, album, rating, session['username'])
+
+    flash('Playlist tracks added to your database!', 'success')
+    return redirect(url_for('songs'))
+    
+@app.route('/playlists/<string:playlist_id>/tracks')
+def add_playlist_tracks_to_db(playlist_id):
+    token_info = session.get('token_info', None)
+    if not token_info:
+        flash('You need to log in first!', 'danger')
+        return redirect(url_for('login_spotify'))
+
+    # Refresh token if it's expired
+    if sp_oauth.is_token_expired(token_info):
+        token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
+        session['token_info'] = token_info
+
+    sp = spotipy.Spotify(auth=token_info['access_token'])
+
+    # Fetch all tracks from the playlist
+    results = sp.playlist_tracks(playlist_id)
+
+    # Loop through the tracks and add each to the database
+    for item in results['items']:
+        # Ensure this is a track and not local or unavailable item
+        track = item.get('track', None)
+        if track and track.get('name') and track.get('artists'):
+            track_name = track['name']
+            performer = ', '.join(artist['name'] for artist in track['artists'])
+            album = track['album']['name'] if track['album'] else 'Single'
+            rating = 5  # Default rating, modify as needed
+            
+            # Use the helper function to add or update the song
+            add_or_update_song(track_name, performer, album, rating, session['username'])
+
+    flash('Playlist tracks added to your database!', 'success')
+    return redirect(url_for('songs'))
+
 
 @app.route('/songs/<int:id>/update', methods=['POST'])
 def update_song_rating(id):
