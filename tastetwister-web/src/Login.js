@@ -38,6 +38,8 @@ function LoginForm() {
             if (data.message === "Login successful!") {
                 localStorage.setItem('username', data.username);
                 console.log(localStorage.getItem('username'));
+                localStorage.setItem('token', data.token);
+                console.log(localStorage.getItem('token'));
                 navigate('/home')
                 console.log('Successful login:', data.message);
             // Handle successful login

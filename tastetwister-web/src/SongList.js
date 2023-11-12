@@ -87,14 +87,18 @@ function SongList() {
     const file = e.target.files[0];
     if (file) {
       //console.log('Selected file:', file);
-      const storedUsername = localStorage.getItem('username');
+      const storedToken = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('file', file);
-  
-      fetch('http://127.0.0.1:5000/upload_songs?username=' + storedUsername, {
+      console.log(storedToken)
+      fetch('http://127.0.0.1:5000/upload_songs', {
         method: 'POST',
+        headers:{
+          "Authorization": storedToken
+        },
         body: formData,
         credentials: 'include',
+        
       })
       .then((response) => response.json())
       .then((data) => {
