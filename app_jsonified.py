@@ -45,94 +45,9 @@ class Song(db.Model):
         self.rating = new_rating
         db.session.commit()
 
-@app.route('/')
-def home():
-    if 'username' in session:
-        return jsonify({'message': 'User is already logged in'})
-    return jsonify({'message': 'Welcome to TasteTwister'})
-
-
-@app.route('/register', methods=['POST'])
-def register():
-    if request.method == 'POST':
-        data = request.get_json()
-        username = data.get('username')
-        password = data.get('password')
-        hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
-        
-        # Generate a unique token for the new user
-        unique_token = secrets.token_hex(16)
-        
-        # Include the token when creating the new User object
-        new_user = User(username=username, password=hashed_pw, token=unique_token)
-        
-        db.session.add(new_user)
-        db.session.commit()
-        return jsonify({'message': 'Registration successful!', 'token': unique_token})
-    
-    return jsonify({'message': 'Use POST request to register'})
-
-
-@app.route('/login', methods=['POST'])
-def login():
-    if request.method == 'POST':
-        data = request.get_json()
-        username = data.get('username')
-        password = data.get('password')
-        user = User.query.filter_by(username=username).first()
-        
-        if user and bcrypt.check_password_hash(user.password, password):
-            session['username'] = user.username
-            # Return username and token in the response
-            return jsonify({
-                'message': 'Login successful!',
-                'username': user.username,
-                'token': user.token
-            })
-        else:
-            return jsonify({'message': 'Login failed! Check your credentials.'})
-    
-    return jsonify({'message': 'Use POST request to log in'})
-
-
-
-@app.route('/logout')
-def logout():
-    session.pop('username', None)
-    return jsonify({'message': 'Logged out successfully'})
-
-
-@app.route('/songs', methods=['GET', 'POST'])
-def songs():
-    if 'username' not in session:
-        return jsonify({'message': 'Please log in first.'}), 401
-
-    if request.method == 'POST':
-        data = request.get_json()
-        track_name = data['track_name']
-        performer = data['performer']
-        album = data['album']
-        rating = data['rating']
-
-        # Use the helper function to add or update the song
-        add_or_update_song(track_name, performer, album, rating, session['username'])
-        return jsonify({'message': 'Song added or updated!'}), 201
-
-    songs = Song.query.filter_by(username=session['username']).all()
-    return jsonify([
-        {
-            "id": song.id,
-            "track_name": song.track_name,
-            "performer": song.performer,
-            "album": song.album,
-            "rating": song.rating
-        } for song in songs
-    ])
-
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 def add_or_update_song(track_name, performer, album, rating, username):
     # Check if the song already exists for the user
@@ -143,8 +58,6 @@ def add_or_update_song(track_name, performer, album, rating, username):
         new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username)
         db.session.add(new_song)
     db.session.commit()
-
-
 
 def add_songs_from_csv(file_path, username):
     invalid_rows = 0
@@ -207,56 +120,219 @@ def add_songs_from_json(file_path, username):
             flash('Some imports did not meet the required format', 'warning')
 
 
+@app.route('/')
+def home():
+    return jsonify({'message': 'Welcome to TasteTwister'}), 200
+
+
+@app.route('/register', methods=['POST'])
+def register():
+    if request.method == 'POST':
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+
+        # Check if username already exists
+        if User.query.filter_by(username=username).first():
+            return jsonify({'error': 'Username already exists'}), 409
+
+        hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
+        unique_token = secrets.token_hex(16)
+        new_user = User(username=username, password=hashed_pw, token=unique_token)
+        
+        db.session.add(new_user)
+        db.session.commit()
+        return jsonify({'message': 'Registration successful!', 'token': unique_token}), 201
+    
+    return jsonify({'error': 'Invalid request method'}), 405
+
+
+@app.route('/login', methods=['POST'])
+def login():
+    if request.method == 'POST':
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        user = User.query.filter_by(username=username).first()
+        
+        if user and bcrypt.check_password_hash(user.password, password):
+            # Generate a new token
+            new_token = secrets.token_hex(16)
+            user.token = new_token
+            db.session.commit()
+
+            return jsonify({
+                'message': 'Login successful!',
+                'username': user.username,
+                'token': new_token
+            }), 200
+        else:
+            return jsonify({'error': 'Invalid credentials'}), 401
+    
+    return jsonify({'error': 'Invalid request method'}), 405
+
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    # Assuming the token is passed in the header of the request
+    token = request.headers.get('Authorization')
+
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    # Find the user with the provided token
+    user = User.query.filter_by(token=token).first()
+
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Invalidate the token
+    user.token = None
+    db.session.commit()
+
+    return jsonify({'message': 'Logged out successfully'}), 200
+
+
+@app.route('/songs', methods=['GET', 'POST'])
+def songs():
+    # Handle GET requests
+    if request.method == 'GET':
+        username = request.args.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+
+        songs = Song.query.filter_by(username=username).all()
+        return jsonify([
+            {
+                "id": song.id,
+                "track_name": song.track_name,
+                "performer": song.performer,
+                "album": song.album,
+                "rating": song.rating
+            } for song in songs
+        ]), 200
+
+    # Handle POST requests
+    if request.method == 'POST':
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({'error': 'Authorization token is required'}), 401
+
+        user = User.query.filter_by(token=token).first()
+        if not user:
+            return jsonify({'error': 'Invalid token'}), 401
+
+        data = request.get_json()
+        track_name = data.get('track_name')
+        performer = data.get('performer')
+        album = data.get('album')
+        rating = data.get('rating')
+
+        if not all([track_name, performer, album, rating]):
+            return jsonify({'error': 'Missing song data'}), 400
+
+        add_or_update_song(track_name, performer, album, rating, user.username)
+        return jsonify({'message': 'Song added or updated!'}), 201
+
+    # If method is neither GET nor POST
+    return jsonify({'error': 'Invalid request method'}), 405
+
+
 @app.route('/upload_songs', methods=['POST'])
 def upload_songs():
-    if 'username' not in session:
-        return jsonify({'message': 'Please log in first.'}), 401
+    # Validate the token
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
 
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Check if the file part is present in the request
     if 'file' not in request.files:
-        return jsonify({'message': 'No file provided'}), 400
+        return jsonify({'error': 'No file provided'}), 400
     
     file = request.files['file']
-    if file.filename == '':
-        return jsonify({'message': 'No selected file'}), 400
 
+    # Check if the filename is not empty
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    # Validate file type and process accordingly
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
         extension = filename.rsplit('.', 1)[1].lower()
 
+        # Process based on file extension
         if extension == "csv":
-            add_songs_from_csv(file_path, session['username'])
+            add_songs_from_csv(file_path, user.username)
         elif extension == "json":
-            add_songs_from_json(file_path, session['username'])
+            add_songs_from_json(file_path, user.username)
 
-        return jsonify({'message': 'Songs uploaded successfully!'})
+        return jsonify({'message': 'Songs uploaded successfully!'}), 200
     
-    return jsonify({'message': 'Unsupported file type'}), 400
+    return jsonify({'error': 'Unsupported file type'}), 400
 
 
 @app.route('/songs/<int:id>/update', methods=['POST'])
 def update_song_rating(id):
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
     song = Song.query.get(id)
-    if song and "new_rating" in request.form:
-        new_rating = request.form['new_rating']
-        song.update_rating(new_rating)
-        return jsonify({'message': 'Song rating updated successfully!'})
-    return jsonify({'message': 'Error updating song rating'}), 400
+    if song and song.user.username == user.username:
+        new_rating = request.form.get('new_rating')
+        if new_rating:
+            song.update_rating(new_rating)
+            return jsonify({'message': 'Song rating updated successfully!'}), 200
+        else:
+            return jsonify({'error': 'New rating not provided'}), 400
+    else:
+        return jsonify({'error': 'Song not found or unauthorized access'}), 404
+
+
 
 @app.route('/songs/<int:id>/delete', methods=['POST'])
 def delete_song(id):
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
     song = Song.query.get(id)
-    if song:
+    if song and song.user.username == user.username:
         db.session.delete(song)
         db.session.commit()
-        return jsonify({'message': 'Song deleted successfully!'})
-    return jsonify({'message': 'Error deleting song'}), 404
+        return jsonify({'message': 'Song deleted successfully!'}), 200
+    else:
+        return jsonify({'error': 'Song not found or unauthorized access'}), 404
+
 
 @app.route('/export_songs', methods=['GET'])
 def export_songs():
-    # Fetching songs specific to the logged-in user
-    songs = Song.query.filter_by(username=session['username']).all()
+    # Validate the token
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Fetching songs specific to the authenticated user
+    songs = Song.query.filter_by(username=user.username).all()
 
     def generate():
         data = StringIO()
@@ -286,7 +362,7 @@ def export_songs():
         'Content-type': 'text/csv'
     }
 
-    return Response(stream_with_context(generate()), headers=headers)
+    return Response(stream_with_context(generate()), headers=headers), 200
 
 
 if __name__ == '__main__':
