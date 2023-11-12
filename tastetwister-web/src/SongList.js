@@ -5,31 +5,7 @@ import './SongList.css';
 function SongList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [songs, setSongs] = useState([]);
-  
-  //useEffect(() => {
-    // Fetch the user's songs when the component mounts
-    //const storedUsername = localStorage.getItem('username');
-    //console.log(storedUsername)
-    //fetch('http://127.0.0.1:5000/songs?username='+storedUsername, {
-      //method: 'GET',
-      //credentials: 'include'
-      
-    //})
-     // .then((response) => response.json())
-    // .then((data) => {
-     //   setSongs(data);
-     //   console.log("current songs: ", data);
-     // })
-     // .catch((error) => console.error('Error fetching songs:', error));
- // }, []);
 
-  /*const [songs, setSongs] = useState([
-    { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
-     rating: '4' },
-    { title: 'Waka Waka (This Time for Africa)', artist: 'Shakira', 
-    album: 'Waka Waka (This Time for Africa)', rating: '5' },
-    
-  ]);*/
 
   const [isPopupVisible, setPopupVisible] = useState(false);
   const [isManualPopupVisible, setManualPopupVisible] = useState(false);
@@ -152,28 +128,27 @@ function SongList() {
   
     console.log("User's Song Entry:", userSong);
     
-    const storedUsername = localStorage.getItem('username');
+    const storedToken = localStorage.getItem('token');
+    console.log(storedToken);
 
-    fetch('http://127.0.0.1:5000/upload_songs?username=' + storedUsername, {
+    fetch('http://127.0.0.1:5000/songs', {
     method: 'POST',
     headers: {
+        "Authorization": storedToken,
         'Content-Type': 'application/json',
     },
-    body: userSong,
+    body: JSON.stringify(userSong),
     credentials: 'include',
     })
     .then((response) => response.json())
     .then((data) => {
-        console.log("slmmm");
-    //console.log('Response from server:', data);
-    if (data.message === "Songs uploaded successfully!") {
-        alert("Songs uploaded successfully!");
+    if (data.message === "Song added or updated!") {
+        alert("Song added or updated successfully!");
 
         // Fetch the updated list of songs
         fetchSongs()
         .then((updatedData) => {
             setSongs(updatedData);
-            //console.log("Updated songs: ", updatedData);
         })
         .catch((error) => console.error('Error fetching updated songs:', error));
     }
@@ -182,7 +157,6 @@ function SongList() {
     console.error('Error uploading file:', error);
     });
 
-    // You can send this object to the backend later
   };
 
   const filteredSongs = songs.filter(
