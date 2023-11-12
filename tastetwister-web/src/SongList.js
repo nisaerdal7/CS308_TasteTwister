@@ -1,5 +1,7 @@
 import React, { useState, useEffect} from 'react';
 import './SongList.css';
+import editIcon from './images/edit-icon.png'; // Adjust the path based on your project structure
+
 
 
 function SongList() {
@@ -9,6 +11,7 @@ function SongList() {
 
   const [isPopupVisible, setPopupVisible] = useState(false);
   const [isManualPopupVisible, setManualPopupVisible] = useState(false);
+  const [isEditPopupVisible, setEditPopupVisible] = useState(false);
 
   const [songEntry, setSongEntry] = useState({
     track_name: "",
@@ -24,6 +27,14 @@ function SongList() {
 
   const hidePopup = () => {
     setPopupVisible(false);
+  };
+
+  const showEditPopup = () => {
+    setEditPopupVisible(true);
+  };  
+
+  const hideEditPopup = () => {
+    setEditPopupVisible(false);
   };
 
   const showManualPopup = () => {
@@ -159,6 +170,8 @@ function SongList() {
 
   };
 
+  
+
   const filteredSongs = songs.filter(
     (song) =>
       `${song.track_name} ${song.performer} ${song.album}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -179,27 +192,42 @@ function SongList() {
       </div>
 
       <div className="song-list">
-        <table>
-          <thead>
-            <tr>
-              <th className="title-column">Title</th>
-              <th className="column">Artist</th>
-              <th className="column">Album</th>
-              <th className="column">Rating</th>
-            </tr>
-          </thead>
-          <tbody>
-          {filteredSongs.map((song, index) => (
-              <tr key={index}>
-                <td className="title-column">{song.track_name}</td>
-                <td className="column">{song.performer}</td>
-                <td className="column">{song.album}</td>
-                <td className="column">{song.rating}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+  <table>
+    <thead>
+      <tr>
+        <th className="title-column">Title</th>
+        <th className="column">Artist</th>
+        <th className="column">Album</th>
+        <th className="rating-column">Rating</th>
+        
+      </tr>
+    </thead>
+    <tbody>
+      {filteredSongs.map((song, index) => (
+        <tr key={index}>
+          <td className="title-column">{song.track_name}</td>
+          <td className="column">{song.performer}</td>
+          <td className="column">{song.album}</td>
+          <td className="rating-column">{song.rating}</td>
+          <td className="actions-column">
+    
+            <span
+            onClick={showEditPopup}// Call a function for edit action
+            style={{ cursor: 'pointer', marginLeft: '5px' }}
+           >
+          <img
+            src={editIcon}
+            alt="Edit Icon"
+            style={{ width: '13px', height: '13px' }} // Adjust the size as needed
+          />
+            </span>
+          </td>
+
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
 
       {isPopupVisible && (
         <div className="popup">
@@ -279,6 +307,29 @@ function SongList() {
           <button onClick={submitSong}>Submit</button>
         </div>
       )}
+
+{isEditPopupVisible && (
+  <div className="popup">
+    <button className="close-button" onClick={hideEditPopup}>
+      X
+    </button>
+    <div className="button-container">
+      <select
+        className="ratinge-select"
+      >
+        <option value="" >Select Rating</option>
+        {[1, 2, 3, 4, 5].map((ratinge) => (
+          <option key={ratinge} value={ratinge}>
+            {ratinge}
+          </option>
+        ))}
+      </select>
+    </div>
+    <button>Submit</button>
+  </div>
+)}
+
+      
     </div>
   );
 }
