@@ -214,26 +214,28 @@ def add_songs_from_json(file_path, username):
 
 @app.route('/upload_songs', methods=['POST'])
 def upload_songs():
-    if 'username' not in session:
-        return jsonify({'message': 'Please log in first.'}), 401
+    '''if 'username' not in session:
+        return jsonify({'message': 'Please log in first.'}), 401'''
 
+    username = request.args.get('username')
+    
     if 'file' not in request.files:
         return jsonify({'message': 'No file provided'}), 400
-    
     file = request.files['file']
     if file.filename == '':
         return jsonify({'message': 'No selected file'}), 400
-
+    
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
         extension = filename.rsplit('.', 1)[1].lower()
 
+        
         if extension == "csv":
-            add_songs_from_csv(file_path, session['username'])
+            add_songs_from_csv(file_path, username)
         elif extension == "json":
-            add_songs_from_json(file_path, session['username'])
+            add_songs_from_json(file_path, username)
 
         return jsonify({'message': 'Songs uploaded successfully!'})
     

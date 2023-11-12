@@ -6,21 +6,22 @@ function SongList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [songs, setSongs] = useState([]);
   
-  useEffect(() => {
+  //useEffect(() => {
     // Fetch the user's songs when the component mounts
-    const storedUsername = localStorage.getItem('username');
-    console.log(storedUsername)
-    fetch('http://127.0.0.1:5000/songs?username='+storedUsername, {
-      method: 'GET',
-      credentials: 'include'
+    //const storedUsername = localStorage.getItem('username');
+    //console.log(storedUsername)
+    //fetch('http://127.0.0.1:5000/songs?username='+storedUsername, {
+      //method: 'GET',
+      //credentials: 'include'
       
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        setSongs(data);
-      })
-      .catch((error) => console.error('Error fetching songs:', error));
-  }, []);
+    //})
+     // .then((response) => response.json())
+    // .then((data) => {
+     //   setSongs(data);
+     //   console.log("current songs: ", data);
+     // })
+     // .catch((error) => console.error('Error fetching songs:', error));
+ // }, []);
 
   /*const [songs, setSongs] = useState([
     { title: 'Cant Remember to Forget You', artist: 'Rihanna', album: 'Shakira. (Expanded Edition)',
@@ -58,14 +59,64 @@ function SongList() {
     setManualPopupVisible(false);
   };
 
-  // You can work with the selected file (e.g., upload it to the server or process it)
+
+  const fetchSongs = () => {
+    const storedUsername = localStorage.getItem('username');
+    console.log(storedUsername);
+    
+    return fetch('http://127.0.0.1:5000/songs?username=' + storedUsername, {
+      method: 'GET',
+      credentials: 'include'
+    })
+    .then((response) => response.json())
+    .catch((error) => {
+      console.error('Error fetching songs:', error);
+      throw error; // propagate the error
+    });
+  };
+  
+  useEffect(() => {
+    // Fetch the user's songs when the component mounts
+    fetchSongs()
+      .then((data) => {
+        setSongs(data);
+      });
+  }, []);
+  
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
-      
-      console.log('Selected file:', file);
+      //console.log('Selected file:', file);
+      const storedUsername = localStorage.getItem('username');
+      const formData = new FormData();
+      formData.append('file', file);
+  
+      fetch('http://127.0.0.1:5000/upload_songs?username=' + storedUsername, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      })
+      .then((response) => response.json())
+      .then((data) => {
+        //console.log('Response from server:', data);
+        if (data.message === "Songs uploaded successfully!") {
+          alert("Songs uploaded successfully!");
+  
+          // Fetch the updated list of songs
+          fetchSongs()
+            .then((updatedData) => {
+              setSongs(updatedData);
+              //console.log("Updated songs: ", updatedData);
+            })
+            .catch((error) => console.error('Error fetching updated songs:', error));
+        }
+      })
+      .catch((error) => {
+        console.error('Error uploading file:', error);
+      });
     }
   };
+  
 
   //TO-DO: URL thing does not work properly yet, waiting for backend implementation.
   const [urlInput, setUrlInput] = useState("");
@@ -96,6 +147,37 @@ function SongList() {
     };
   
     console.log("User's Song Entry:", userSong);
+    
+    const storedUsername = localStorage.getItem('username');
+
+    fetch('http://127.0.0.1:5000/upload_songs?username=' + storedUsername, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: userSong,
+    credentials: 'include',
+    })
+    .then((response) => response.json())
+    .then((data) => {
+        console.log("slmmm");
+    //console.log('Response from server:', data);
+    if (data.message === "Songs uploaded successfully!") {
+        alert("Songs uploaded successfully!");
+
+        // Fetch the updated list of songs
+        fetchSongs()
+        .then((updatedData) => {
+            setSongs(updatedData);
+            //console.log("Updated songs: ", updatedData);
+        })
+        .catch((error) => console.error('Error fetching updated songs:', error));
+    }
+    })
+    .catch((error) => {
+    console.error('Error uploading file:', error);
+    });
+
     // You can send this object to the backend later
   };
 
@@ -183,13 +265,13 @@ function SongList() {
                 type="text"
                 placeholder="Title..."
                 value={songEntry.track_name}
-                onChange={(e) => handleSongInputChange(e, "title")}
+                onChange={(e) => handleSongInputChange(e, "track_name")}
                 />
                 <input
                 type="text"
                 placeholder="Artist..."
                 value={songEntry.performer}
-                onChange={(e) => handleSongInputChange(e, "artist")}
+                onChange={(e) => handleSongInputChange(e, "performer")}
                 />
             </div>
             <div className="song-entry-row">
