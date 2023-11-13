@@ -7,6 +7,7 @@ import editIcon from './images/edit-icon.png'; // Adjust the path based on your 
 function SongList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [songs, setSongs] = useState([]);
+  const [selectedSongId, setSelectedSongId] = useState(0);
   
   //useEffect(() => {
     // Fetch the user's songs when the component mounts
@@ -53,7 +54,8 @@ function SongList() {
     setPopupVisible(false);
   };
 
-  const showEditPopup = () => {
+  const showEditPopup = (songId) => {
+    setSelectedSongId(songId);
     setEditPopupVisible(true);
   };  
 
@@ -147,6 +149,35 @@ function SongList() {
     });
   };
 
+  const handleEditRatings = (songId, newRating) => {
+    const storedToken = localStorage.getItem('token');
+    console.log(selectedRating);
+    fetch(`http://127.0.0.1:5000/songs/${songId}/update`, {
+      method: 'POST',
+      headers: {
+        'Authorization': storedToken,
+        'Content-Type': 'application/json', // Specify content type
+      },
+      body: JSON.stringify({ new_rating: newRating }), // Convert data to JSON string
+    })
+    .then((response) => response.json())
+    .then((data) => {
+      //console.log('Response from server:', data);
+      if (data.message === 'Song rating updated successfully!') {
+          alert("Song rating updated successfully!");
+  
+          // Fetch the updated list of songs
+          fetchSongs()
+          .then((updatedData) => {
+              setSongs(updatedData);
+              //console.log("Updated songs: ", updatedData);
+          })
+          .catch((error) => console.error('Error fetching updated songs:', error));
+      }
+      })
+
+  };
+
   const submitSong = () => {
     // Check if any of the fields are empty
     if (!songEntry.track_name || !songEntry.performer || !songEntry.album || !songEntry.rating) {
@@ -175,7 +206,6 @@ function SongList() {
     })
     .then((response) => response.json())
     .then((data) => {
-        console.log("slmmm");
     //console.log('Response from server:', data);
     if (data.message === "Songs uploaded successfully!") {
         alert("Songs uploaded successfully!");
@@ -202,7 +232,7 @@ function SongList() {
     (song) =>
       `${song.track_name} ${song.performer} ${song.album}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
+  const [selectedRating, setSelectedRating] = useState(0);
  return (
     <div className="song-list-container">
       <div className="search-bar">
@@ -238,7 +268,7 @@ function SongList() {
           <td className="actions-column">
     
             <span
-            onClick={showEditPopup}// Call a function for edit action
+            onClick={()=>showEditPopup(song.id)}// Call a function for edit action
             style={{ cursor: 'pointer', marginLeft: '5px' }}
            >
           <img
@@ -342,6 +372,8 @@ function SongList() {
     <div className="button-container">
       <select
         className="ratinge-select"
+        value={selectedRating}
+        onChange={(e) => setSelectedRating(e.target.value)}
       >
         <option value="" >Select Rating</option>
         {[1, 2, 3, 4, 5].map((ratinge) => (
@@ -351,7 +383,7 @@ function SongList() {
         ))}
       </select>
     </div>
-    <button>Submit</button>
+    <button onClick={()=> handleEditRatings(selectedSongId, selectedRating)}>Submit</button>
   </div>
 )}
 

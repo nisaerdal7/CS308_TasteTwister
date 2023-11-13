@@ -289,10 +289,10 @@ def update_song_rating(id):
     user = User.query.filter_by(token=token).first()
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
-
+    
     song = Song.query.get(id)
     if song and song.user.username == user.username:
-        new_rating = request.form.get('new_rating')
+        new_rating = request.get_json('new_rating')['new_rating']
         if new_rating:
             song.update_rating(new_rating)
             return jsonify({'message': 'Song rating updated successfully!'}), 200
