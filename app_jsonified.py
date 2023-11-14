@@ -9,9 +9,13 @@ from flask import Response, stream_with_context
 from io import StringIO
 from flask_bcrypt import Bcrypt
 import secrets
+from flask_cors import CORS
+import spotifysearch
+from spotifysearch.client import Client
 
 
 app = Flask(__name__)
+CORS(app, supports_credentials=True)
 bcrypt = Bcrypt(app)
 
 
@@ -21,6 +25,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Silence the deprecation 
 app.config['SECRET_KEY'] = 'your_secret_key_here'
 app.config['UPLOAD_FOLDER'] = 'uploads'  # Folder to save uploaded files
 ALLOWED_EXTENSIONS = {'csv', 'json'}
+
+# Your application's Client ID and Client Secret
+SPOTIFY_CLIENT_ID = "8a9fb2659bdb46d6815580ec3ff4d2c6"
+SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
 
 db = SQLAlchemy(app)
 
@@ -49,14 +57,33 @@ class Song(db.Model):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def add_or_update_song(track_name, performer, album, rating, username):
-    # Check if the song already exists for the user
-    existing_song = Song.query.filter_by(track_name=track_name, performer=performer, album=album, username=username).first()
-    if existing_song:
-        existing_song.update_rating(rating)
+def add_or_update_song(user_track_name, user_performer, user_album, rating, username):
+    #Add a new song or update an existing one with verified information from Spotify.
+    myclient = Client(SPOTIFY_CLIENT_ID , SPOTIFY_CLIENT_SECRET)
+    search_result = myclient.search(user_track_name + " " + user_performer + " " + user_album)
+    tracks = search_result.get_tracks()
+    if tracks:
+        track = tracks[0]
+        # Now you can process the track as before
+        track_name = track.name
+        performer = track.artists[0].name
+        album = track.album.name
+
+        # Check if the song already exists in the database for this user
+        existing_song = Song.query.filter_by(track_name=track_name, performer=performer, album=album, username=username).first()
+    
+        if existing_song:
+            # Update the existing song with Spotify data
+            existing_song.rating = rating  # Only the rating is updated as it's user-specific
+        else:
+            # Add a new song with Spotify data
+            new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username)
+            db.session.add(new_song)
     else:
-        new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username)
-        db.session.add(new_song)
+        # Handle the case when no tracks are found
+        flash('No tracks found on Spotify with the provided details.', 'warning')
+        # You can redirect the user or take any other action as required
+    
     db.session.commit()
 
 def add_songs_from_csv(file_path, username):
@@ -244,7 +271,7 @@ def upload_songs():
     # Validate the token
     token = request.headers.get('Authorization')
     if not token:
-        return jsonify({'error': 'Authorization token is required'}), 401
+        return jsonify({'error': 'Authorization token is required'}), 402
 
     user = User.query.filter_by(token=token).first()
     if not user:
@@ -287,10 +314,10 @@ def update_song_rating(id):
     user = User.query.filter_by(token=token).first()
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
-
+    
     song = Song.query.get(id)
     if song and song.user.username == user.username:
-        new_rating = request.form.get('new_rating')
+        new_rating = request.get_json('new_rating')['new_rating']
         if new_rating:
             song.update_rating(new_rating)
             return jsonify({'message': 'Song rating updated successfully!'}), 200
@@ -320,6 +347,12 @@ def delete_song(id):
         return jsonify({'error': 'Song not found or unauthorized access'}), 404
 
 
+'''
+Now, you can call the export route with additional query parameters like so:
+/export_songs?performer=Taylor Swift to get songs by Taylor Swift.
+/export_songs?rating=5 to get songs with a rating of 5.
+/export_songs?performer=Taylor Swift&rating=5 to get songs by Taylor Swift with a rating of 5.
+'''
 @app.route('/export_songs', methods=['GET'])
 def export_songs():
     # Validate the token
@@ -331,8 +364,22 @@ def export_songs():
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
 
-    # Fetching songs specific to the authenticated user
-    songs = Song.query.filter_by(username=user.username).all()
+    # Retrieve filter parameters from query string
+    filter_performer = request.args.get('performer')
+    filter_rating = request.args.get('rating')
+
+    # Start with all songs for the user
+    query = Song.query.filter_by(username=user.username)
+
+    # Apply performer filter if provided
+    if filter_performer:
+        query = query.filter(Song.performer.ilike(f"%{filter_performer}%"))
+
+    # Apply rating filter if provided and if it's a digit
+    if filter_rating and filter_rating.isdigit():
+        query = query.filter(Song.rating == int(filter_rating))
+
+    songs = query.all()
 
     def generate():
         data = StringIO()
