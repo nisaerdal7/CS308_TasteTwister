@@ -20,6 +20,11 @@ And then run the Flask app:
 ```
 python app.py
 ```
+
+For the mobile application, make sure you have Flutter and Dart installed, and ensure that an Android device is connected or an Android emulator is open. Navigate to the 'taste_twisters_mobile' directory and execute the following commands:
+```
+flutter run lib/main_development.dart --flavor development
+```
 ## API Requests
 ### 1. Home Route (/)
 GET Request: Simply accessing the root URL (/) would return the welcome message.
