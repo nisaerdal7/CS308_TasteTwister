@@ -347,6 +347,12 @@ def delete_song(id):
         return jsonify({'error': 'Song not found or unauthorized access'}), 404
 
 
+'''
+Now, you can call the export route with additional query parameters like so:
+/export_songs?performer=Taylor Swift to get songs by Taylor Swift.
+/export_songs?rating=5 to get songs with a rating of 5.
+/export_songs?performer=Taylor Swift&rating=5 to get songs by Taylor Swift with a rating of 5.
+'''
 @app.route('/export_songs', methods=['GET'])
 def export_songs():
     # Validate the token
@@ -358,8 +364,22 @@ def export_songs():
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
 
-    # Fetching songs specific to the authenticated user
-    songs = Song.query.filter_by(username=user.username).all()
+    # Retrieve filter parameters from query string
+    filter_performer = request.args.get('performer')
+    filter_rating = request.args.get('rating')
+
+    # Start with all songs for the user
+    query = Song.query.filter_by(username=user.username)
+
+    # Apply performer filter if provided
+    if filter_performer:
+        query = query.filter(Song.performer.ilike(f"%{filter_performer}%"))
+
+    # Apply rating filter if provided and if it's a digit
+    if filter_rating and filter_rating.isdigit():
+        query = query.filter(Song.rating == int(filter_rating))
+
+    songs = query.all()
 
     def generate():
         data = StringIO()
