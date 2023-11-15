@@ -2,17 +2,18 @@ import React, { useState, useEffect} from 'react';
 import './SongList.css';
 import editIcon from './images/edit-icon.png'; // Adjust the path based on your project structure
 import deleteIcon from './images/delete-icon.webp';
-
+import downloadIcon from './images/download-icon.png'; 
 
 function SongList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [songs, setSongs] = useState([]);
   const [selectedSongId, setSelectedSongId] = useState(0);
-  
+  const [selectedArtist, setSelectedArtist] = useState('');
 
   const [isPopupVisible, setPopupVisible] = useState(false);
   const [isManualPopupVisible, setManualPopupVisible] = useState(false);
   const [isEditPopupVisible, setEditPopupVisible] = useState(false);
+  const [isExportPopupVisible, setExportPopupVisible] = useState(false);
 
   const [songEntry, setSongEntry] = useState({
     track_name: "",
@@ -76,6 +77,8 @@ function SongList() {
       }
       })
   }
+
+  
 
 
   const fetchSongs = () => {
@@ -174,6 +177,7 @@ function SongList() {
           fetchSongs()
           .then((updatedData) => {
               setSongs(updatedData);
+              setSelectedRating('');
               //console.log("Updated songs: ", updatedData);
           })
           .catch((error) => console.error('Error fetching updated songs:', error));
@@ -254,6 +258,13 @@ function SongList() {
         />
         <button className="add-button" onClick={showPopup}>
           +
+        </button>
+        <button className="add-button" onClick={()=>setExportPopupVisible(true)}>
+        <img
+            src={downloadIcon}
+            alt="Download Icon"
+            style={{ width: '13px', height: '13px' }} // Adjust the size as needed
+          />
         </button>
       </div>
 
@@ -405,6 +416,48 @@ function SongList() {
       </select>
     </div>
     <button onClick={()=> handleEditRatings(selectedSongId, selectedRating)}>Submit</button>
+  </div>
+)}
+{isExportPopupVisible && (
+  <div className="popup">
+    <button className="close-button" onClick={()=>setExportPopupVisible(false)}>
+      X
+    </button>
+    <div className="song-entry-container">
+            <div className="song-entry-row">
+              <span 
+              style={{marginTop: '40px' }}
+              >
+                <p>Filter by artist or rating!</p>
+                </span>
+            </div>
+            <div className="song-entry-row">
+                <input
+                type="text"
+                placeholder="Artist..."
+                value={selectedArtist}
+                onChange={(e) => setSelectedArtist(e.target.value)}
+                />
+            </div>
+            <div className="button-container">
+      <select
+        className="ratinge-select"
+        value={selectedRating}
+        onChange={(e) => setSelectedRating(e.target.value)}
+      >
+        <option value="" >Select Rating</option>
+        {[1, 2, 3, 4, 5].map((ratinge) => (
+          <option key={ratinge} value={ratinge}>
+            {ratinge}
+          </option>
+        ))}
+      </select>
+    </div>
+            
+  </div>
+            
+    <button >Submit</button>
+    
   </div>
 )}
 
