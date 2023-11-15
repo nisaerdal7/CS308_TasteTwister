@@ -14,7 +14,7 @@ import spotifysearch
 from spotifysearch.client import Client
 
 
-app = Flask(__name__)
+app = Flask(_name_)
 CORS(app, supports_credentials=True)
 bcrypt = Bcrypt(app)
 
@@ -33,7 +33,7 @@ SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
 db = SQLAlchemy(app)
 
 class User(db.Model):
-    __tablename__ = 'users'
+    _tablename_ = 'users'
     username = db.Column(db.String(255), primary_key=True)
     password = db.Column(db.Text, nullable=False)  # In a real-world app, hash the password
     token = db.Column(db.String(255), nullable=False)  # Assuming token should be non-nullable
@@ -41,7 +41,7 @@ class User(db.Model):
 
 
 class Song(db.Model):
-    __tablename__ = 'songs'
+    _tablename_ = 'songs'
     id = db.Column(db.Integer, primary_key=True)
     track_name = db.Column(db.String(255), nullable=False)
     performer = db.Column(db.String(255), nullable=False)
@@ -58,6 +58,11 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def add_or_update_song(user_track_name, user_performer, user_album, rating, username):
+    # Convert empty string in rating to None
+    if rating == '':  # <-- This is the added line
+        rating = None  # <-- This is the added line
+
+    
     #Add a new song or update an existing one with verified information from Spotify.
     myclient = Client(SPOTIFY_CLIENT_ID , SPOTIFY_CLIENT_SECRET)
     search_result = myclient.search(user_track_name + " " + user_performer + " " + user_album)
@@ -95,13 +100,18 @@ def add_songs_from_csv(file_path, username):
                 track_name = row['track_name']
                 performer = row['performer']
                 album = row['album']
-                rating = int(row['rating'])
+                if (row['rating'] == None):
+                    rating = row['rating']
+                else:
+                    rating = int(row['rating'])
                 
                 # Validate rating range and that other fields are strings
                 if (not isinstance(track_name, str) or 
                     not isinstance(performer, str) or 
-                    not isinstance(album, str) or 
-                    rating < 1 or rating > 5):
+                    not isinstance(album, str)):
+                    raise ValueError
+                
+                if (rating != 1 and rating != 2 and rating != 3 and rating != 4 and rating != 5 and rating != None):
                     raise ValueError
                 
                 add_or_update_song(track_name, performer, album, rating, username)
@@ -125,13 +135,18 @@ def add_songs_from_json(file_path, username):
                 track_name = item['track_name']
                 performer = item['performer']
                 album = item['album']
-                rating = int(item['rating'])
+                if (item['rating'] == None):
+                    rating = item['rating']
+                else:
+                    rating = int(item['rating'])
 
                 # Validate rating range and that other fields are strings
                 if (not isinstance(track_name, str) or 
                     not isinstance(performer, str) or 
-                    not isinstance(album, str) or 
-                    rating < 1 or rating > 5):
+                    not isinstance(album, str)):
+                    raise ValueError
+                
+                if (rating != 1 and rating != 2 and rating != 3 and rating != 4 and rating != 5 and rating != None):
                     raise ValueError
                 
                 add_or_update_song(track_name, performer, album, rating, username)
@@ -264,6 +279,29 @@ def songs():
 
     # If method is neither GET nor POST
     return jsonify({'error': 'Invalid request method'}), 405
+
+
+@app.route('/songs/unrated', methods=['GET'])
+def get_unrated_songs():
+    # Handle GET requests for unrated songs
+    if request.method == 'GET':
+        username = request.args.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+
+        unrated_songs = Song.query.filter(Song.username == username, Song.rating.is_(None)).all()
+        return jsonify([
+            {
+                "id": song.id,
+                "track_name": song.track_name,
+                "performer": song.performer,
+                "album": song.album,
+                "rating": song.rating  # This will be None
+            } for song in unrated_songs
+        ]), 200
+
+
 
 
 @app.route('/upload_songs', methods=['POST'])
@@ -412,7 +450,7 @@ def export_songs():
     return Response(stream_with_context(generate()), headers=headers), 200
 
 
-if __name__ == '__main__':
+if _name_ == '_main_':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
     app.run(debug=True)

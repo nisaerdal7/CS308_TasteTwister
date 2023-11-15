@@ -118,12 +118,17 @@ def songs():
         return redirect(url_for('login'))
 
     if request.method == 'POST':
+        
         if request.headers.get('Content-Type') == 'application/json':
             data = request.json
             track_name = data['track_name']
             performer = data['performer']
             album = data['album']
-            rating = data['rating']
+            print(data['rating'])
+            if data['rating'] == '':  # <-- This is the added line
+                rating = None  # <-- This is the added line
+            else:
+                rating = data['rating']
         else:
             track_name = request.form['track_name']
             performer = request.form['performer']

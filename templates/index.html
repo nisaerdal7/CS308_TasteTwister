@@ -9,7 +9,7 @@
         <li>
             {{ song.track_name }} by {{ song.performer }} from album {{ song.album }} | Rating: {{ song.rating }}
             <form action="/songs/{{ song.id }}/update" method="post" style="display:inline;">
-                <input type="number" name="new_rating" min="1" max="5" required>
+                <input type="number" name="new_rating">
                 <input type="submit" value="Change Rating">
             </form>
             <form action="/songs/{{ song.id }}/delete" method="post" style="display:inline;">
@@ -29,7 +29,7 @@
     <label for="album">Album:</label>
     <input type="text" name="album" required><br><br>
     <label for="rating">Rating (1-5):</label>
-    <input type="number" name="rating" min="1" max="5" required><br><br>
+    <input type="number" name="rating"><br><br>
     <input type="submit" value="Add Song">
 </form>
 
