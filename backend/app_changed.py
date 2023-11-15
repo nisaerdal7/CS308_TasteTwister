@@ -58,6 +58,11 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def add_or_update_song(user_track_name, user_performer, user_album, rating, username):
+    # Convert empty string in rating to None
+    if rating == '':  # <-- This is the added line
+        rating = None  # <-- This is the added line
+
+    
     #Add a new song or update an existing one with verified information from Spotify.
     myclient = Client(SPOTIFY_CLIENT_ID , SPOTIFY_CLIENT_SECRET)
     search_result = myclient.search(user_track_name + " " + user_performer + " " + user_album)
@@ -95,13 +100,18 @@ def add_songs_from_csv(file_path, username):
                 track_name = row['track_name']
                 performer = row['performer']
                 album = row['album']
-                rating = int(row['rating'])
+                if (row['rating'] == None):
+                    rating = row['rating']
+                else:
+                    rating = int(row['rating'])
                 
                 # Validate rating range and that other fields are strings
                 if (not isinstance(track_name, str) or 
                     not isinstance(performer, str) or 
-                    not isinstance(album, str) or 
-                    rating < 1 or rating > 5):
+                    not isinstance(album, str)):
+                    raise ValueError
+                
+                if (rating != 1 and rating != 2 and rating != 3 and rating != 4 and rating != 5 and rating != None):
                     raise ValueError
                 
                 add_or_update_song(track_name, performer, album, rating, username)
@@ -125,13 +135,18 @@ def add_songs_from_json(file_path, username):
                 track_name = item['track_name']
                 performer = item['performer']
                 album = item['album']
-                rating = int(item['rating'])
+                if (item['rating'] == None):
+                    rating = item['rating']
+                else:
+                    rating = int(item['rating'])
 
                 # Validate rating range and that other fields are strings
                 if (not isinstance(track_name, str) or 
                     not isinstance(performer, str) or 
-                    not isinstance(album, str) or 
-                    rating < 1 or rating > 5):
+                    not isinstance(album, str)):
+                    raise ValueError
+                
+                if (rating != 1 and rating != 2 and rating != 3 and rating != 4 and rating != 5 and rating != None):
                     raise ValueError
                 
                 add_or_update_song(track_name, performer, album, rating, username)
@@ -266,6 +281,29 @@ def songs():
     return jsonify({'error': 'Invalid request method'}), 405
 
 
+@app.route('/songs/unrated', methods=['GET'])
+def get_unrated_songs():
+    # Handle GET requests for unrated songs
+    if request.method == 'GET':
+        username = request.args.get('username')
+
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+
+        unrated_songs = Song.query.filter(Song.username == username, Song.rating.is_(None)).all()
+        return jsonify([
+            {
+                "id": song.id,
+                "track_name": song.track_name,
+                "performer": song.performer,
+                "album": song.album,
+                "rating": song.rating  # This will be None
+            } for song in unrated_songs
+        ]), 200
+
+
+
+
 @app.route('/upload_songs', methods=['POST'])
 def upload_songs():
     # Validate the token
@@ -347,6 +385,12 @@ def delete_song(id):
         return jsonify({'error': 'Song not found or unauthorized access'}), 404
 
 
+'''
+Now, you can call the export route with additional query parameters like so:
+/export_songs?performer=Taylor Swift to get songs by Taylor Swift.
+/export_songs?rating=5 to get songs with a rating of 5.
+/export_songs?performer=Taylor Swift&rating=5 to get songs by Taylor Swift with a rating of 5.
+'''
 @app.route('/export_songs', methods=['GET'])
 def export_songs():
     # Validate the token
@@ -358,8 +402,22 @@ def export_songs():
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
 
-    # Fetching songs specific to the authenticated user
-    songs = Song.query.filter_by(username=user.username).all()
+    # Retrieve filter parameters from query string
+    filter_performer = request.args.get('performer')
+    filter_rating = request.args.get('rating')
+
+    # Start with all songs for the user
+    query = Song.query.filter_by(username=user.username)
+
+    # Apply performer filter if provided
+    if filter_performer:
+        query = query.filter(Song.performer.ilike(f"%{filter_performer}%"))
+
+    # Apply rating filter if provided and if it's a digit
+    if filter_rating and filter_rating.isdigit():
+        query = query.filter(Song.rating == int(filter_rating))
+
+    songs = query.all()
 
     def generate():
         data = StringIO()
