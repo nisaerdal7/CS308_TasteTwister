@@ -13,8 +13,15 @@ import { useNavigate } from "react-router-dom";
 function Sidebar() {
   const navigate = useNavigate();
   const handleLogout = () => {
-    // Perform logout actions (e.g., clear user session)
-    // ...
+    const storedToken = localStorage.getItem('token');
+    console.log(storedToken);
+    fetch(`http://127.0.0.1:5000/logout`, {
+      method: 'POST',
+      headers: {
+        'Authorization': storedToken,
+        'Content-Type': 'application/json', // Specify content type
+      },
+    })
 
     // Redirect to the login page
     navigate('/')

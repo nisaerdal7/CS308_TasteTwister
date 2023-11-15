@@ -1,7 +1,7 @@
 import React, { useState, useEffect} from 'react';
 import './SongList.css';
 import editIcon from './images/edit-icon.png'; // Adjust the path based on your project structure
-
+import deleteIcon from './images/delete-icon.webp';
 
 
 function SongList() {
@@ -47,6 +47,35 @@ function SongList() {
   const hideManualPopup = () => {
     setManualPopupVisible(false);
   };
+
+  const handleDelete = (songId) =>{
+    const storedToken = localStorage.getItem('token');
+    fetch(`http://127.0.0.1:5000/songs/${songId}/delete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': storedToken,
+        'Content-Type': 'application/json', // Specify content type
+      },
+    })
+    .then((response) => response.json())
+    .then((data) => {
+      //console.log('Response from server:', data);
+      if (data.message === 'Song deleted successfully!') {
+          alert('Song deleted successfully!');
+  
+          // Fetch the updated list of songs
+          fetchSongs()
+          .then((updatedData) => {
+              setSongs(updatedData);
+              //console.log("Updated songs: ", updatedData);
+          })
+          .catch((error) => console.error('Error fetching updated songs:', error));
+      }
+      else {
+        alert("The song cannot be deleted!")
+      }
+      })
+  }
 
 
   const fetchSongs = () => {
@@ -127,7 +156,6 @@ function SongList() {
 
   const handleEditRatings = (songId, newRating) => {
     const storedToken = localStorage.getItem('token');
-    console.log(selectedRating);
     fetch(`http://127.0.0.1:5000/songs/${songId}/update`, {
       method: 'POST',
       headers: {
@@ -186,7 +214,14 @@ function SongList() {
     .then((data) => {
     if (data.message === "Song added or updated!") {
         alert("Song added or updated successfully!");
-
+        setSongEntry({
+          track_name: '',
+          performer: '',
+          album: '',
+          rating: ''
+        });
+        setManualPopupVisible(false);
+        setPopupVisible(false);
         // Fetch the updated list of songs
         fetchSongs()
         .then((updatedData) => {
@@ -244,7 +279,7 @@ function SongList() {
     
             <span
             onClick={()=>showEditPopup(song.id)}// Call a function for edit action
-            style={{ cursor: 'pointer', marginLeft: '5px' }}
+            style={{ cursor: 'pointer', marginLeft: '45px' }}
            >
           <img
             src={editIcon}
@@ -252,6 +287,17 @@ function SongList() {
             style={{ width: '13px', height: '13px' }} // Adjust the size as needed
           />
             </span>
+            <span
+            onClick={()=>handleDelete(song.id)}
+            style={{ cursor: 'pointer', marginLeft: '10px' }}
+           >
+          <img
+            src={deleteIcon}
+            alt="Delete Icon"
+            style={{ width: '20px', height: '20px' }} // Adjust the size as needed
+          />
+            </span>
+            
           </td>
 
         </tr>

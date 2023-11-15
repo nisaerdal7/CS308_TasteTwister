@@ -73,7 +73,7 @@
     color: rgb(160, 160, 160);
   }
   .rating-column {
-    width: 100px; /* Distribute the remaining width equally among "artist," "album," and "rating" */
+    width: 80px; /* Distribute the remaining width equally among "artist," "album," and "rating" */
     text-align: center;
     display: inline-block;
     color: rgb(160, 160, 160);
