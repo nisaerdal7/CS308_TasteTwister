@@ -67,6 +67,7 @@ function SongList() {
     fetchSongs()
       .then((data) => {
         setSongs(data);
+        console.log(songs);
       });
   }, []);
   
@@ -218,6 +219,7 @@ function SongList() {
           <img
             src={editIcon}
             alt="Edit Icon"
+            onClick={()=>console.log(song.id)}
             style={{ width: '13px', height: '13px' }} // Adjust the size as needed
           />
             </span>

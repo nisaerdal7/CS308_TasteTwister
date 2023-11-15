@@ -1,5 +1,4 @@
-/* Style for HomeForm */
-.home-container {
+.rate-it {
     text-align: center;
     padding: 20px;
     display: flex;
@@ -15,11 +14,7 @@
     font-size: 2rem;
     color: #333;
   }
-  
-  /*p {
-    font-size: 1.2rem;
-    color: rgb(67, 35, 35);
-  }*/
+
   body {
     background-image: url('studio.jpg');
     background-size: cover;
