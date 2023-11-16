@@ -230,7 +230,7 @@ def logout():
 
     # Invalidate the token
     user.token = None
-    #db.session.commit()
+    db.session.commit()
 
     return jsonify({'message': 'Logged out successfully'}), 200
 
@@ -300,8 +300,6 @@ def get_unrated_songs():
                 "rating": song.rating  # This will be None
             } for song in unrated_songs
         ]), 200
-
-
 
 
 @app.route('/upload_songs', methods=['POST'])
@@ -394,7 +392,7 @@ Now, you can call the export route with additional query parameters like so:
 @app.route('/export_songs', methods=['GET'])
 def export_songs():
     # Validate the token
-    token = request.headers.get('Authorization')
+    token = request.args.get('Authorization')
     if not token:
         return jsonify({'error': 'Authorization token is required'}), 401
 
