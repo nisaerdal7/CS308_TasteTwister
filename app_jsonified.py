@@ -13,9 +13,13 @@ from flask_cors import CORS
 import spotifysearch
 from spotifysearch.client import Client
 from datetime import datetime
+import requests
+import re
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 
 
-app = Flask(_name_)
+app = Flask(__name__)
 CORS(app, supports_credentials=True)
 bcrypt = Bcrypt(app)
 
@@ -30,6 +34,13 @@ ALLOWED_EXTENSIONS = {'csv', 'json'}
 # Your application's Client ID and Client Secret
 SPOTIFY_CLIENT_ID = "8a9fb2659bdb46d6815580ec3ff4d2c6"
 SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
+SPOTIFY_REDIRECT_URI = "http://localhost:5000/songs"
+SPOTIFY_SCOPE = 'playlist-read-private playlist-read-collaborative'
+
+sp_oauth = SpotifyOAuth(client_id=SPOTIFY_CLIENT_ID,
+                        client_secret=SPOTIFY_CLIENT_SECRET,
+                        redirect_uri=SPOTIFY_REDIRECT_URI,
+                        scope=SPOTIFY_SCOPE)
 
 db = SQLAlchemy(app)
 
@@ -49,13 +60,14 @@ class FriendRequest(db.Model):
     responded_at = db.Column(db.DateTime)
     
 class User(db.Model):
-    _tablename_ = 'users'
+    __tablename__ = 'users'
     username = db.Column(db.String(255), primary_key=True)
     password = db.Column(db.Text, nullable=False)  # In a real-world app, hash the password
     token = db.Column(db.String(255), nullable=False)  # Assuming token should be non-nullable
     songs = db.relationship('Song', backref='user', lazy=True)
     permission = db.Column(db.Boolean, nullable=False)
-    
+    spotify_token = db.Column(db.Text, nullable=True)  # For storing Spotify token
+    spotify_refresh_token = db.Column(db.Text, nullable=True)  # New field for refresh token
     
     # Relationship for friendships
     friends = db.relationship('User', 
@@ -71,7 +83,7 @@ class User(db.Model):
                                         backref='receiver_user', lazy='dynamic')
 
 class Song(db.Model):
-    _tablename_ = 'songs'
+    __tablename__ = 'songs'
     id = db.Column(db.Integer, primary_key=True)
     track_name = db.Column(db.String(255), nullable=False)
     performer = db.Column(db.String(255), nullable=False)
@@ -83,8 +95,6 @@ class Song(db.Model):
     def update_rating(self, new_rating):
         self.rating = new_rating
         db.session.commit()
-
-
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -196,11 +206,25 @@ def add_songs_from_json(file_path, username):
         if invalid_items > 0:
             flash('Some imports did not meet the required format', 'warning')
 
+# Define the refresh_spotify_token function
+def refresh_spotify_token(user):
+    refreshed_token_info = sp_oauth.refresh_access_token(user.spotify_refresh_token)
+    user.spotify_token = json.dumps(refreshed_token_info)
+    db.session.commit()
+    return refreshed_token_info['access_token']
+
+# Define the get_spotify_client function
+def get_spotify_client(user):
+    token_info = json.loads(user.spotify_token)
+    if sp_oauth.is_token_expired(token_info):
+        access_token = refresh_spotify_token(user)
+    else:
+        access_token = token_info['access_token']
+    return spotipy.Spotify(auth=access_token)
 
 @app.route('/')
 def home():
     return jsonify({'message': 'Welcome to TasteTwister'}), 200
-
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -223,7 +247,6 @@ def register():
         return jsonify({'message': 'Registration successful!', 'token': unique_token}), 201
     
     return jsonify({'error': 'Invalid request method'}), 405
-
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -337,9 +360,6 @@ def get_unrated_songs():
                 "rating": song.rating  # This will be None
             } for song in unrated_songs
         ]), 200
-
-
-
 
 @app.route('/upload_songs', methods=['POST'])
 def upload_songs():
@@ -460,7 +480,60 @@ def delete_songs_by_album(album):
     else:
         return jsonify({'error': 'No songs found for the specified album or unauthorized access'}), 404
 
+@app.route('/login_spotify')
+def login_spotify():
+    auth_url = sp_oauth.get_authorize_url()
+    return redirect(auth_url)
 
+@app.route('/callback')
+def spotify_callback():
+    code = request.args.get('code')
+    token_info = sp_oauth.get_access_token(code)
+    user = User.query.filter_by(username=session['username']).first()
+    if user:
+        user.spotify_token = json.dumps(token_info)
+        user.spotify_refresh_token = token_info['refresh_token']
+        db.session.commit()
+    return redirect(url_for('songs'))
+
+@app.route('/import_spotify_playlist', methods=['POST'])
+def import_spotify_playlist():
+    if 'username' not in session:
+        flash('Please log in first.', 'danger')
+        return redirect(url_for('login'))
+
+    username = session['username']
+    playlist_url = request.form.get('playlist_url')
+    if not playlist_url:
+        flash('Please provide a Spotify Playlist URL.', 'danger')
+        return redirect(url_for('songs'))
+    
+    match = re.search(r'playlist/(\w+)', playlist_url)
+    if not match:
+        flash('Invalid Spotify Playlist URL provided.', 'danger')
+        return redirect(url_for('songs'))
+
+    playlist_id = match.group(1)
+    user = User.query.filter_by(username=username).first()
+    if user and user.spotify_token:
+        sp = get_spotify_client(user)
+        try:
+            results = sp.playlist_tracks(playlist_id)
+            for item in results['items']:
+                track = item['track']
+                track_name = track['name']
+                performer = ', '.join(artist['name'] for artist in track['artists'])
+                album = track['album']['name']
+                rating = 1  # Default rating
+                add_or_update_song(track_name, performer, album, rating, username)
+            flash('Playlist imported successfully!', 'success')
+        except spotipy.exceptions.SpotifyException as e:
+            flash(str(e), 'danger')
+    else:
+        flash('You need to log in with Spotify first!', 'danger')
+        return redirect(url_for('login_spotify'))
+    return redirect(url_for('songs'))
+    
 '''
 Now, you can call the export route with additional query parameters like so:
 /export_songs?performer=Taylor Swift to get songs by Taylor Swift.
@@ -526,7 +599,7 @@ def export_songs():
     return Response(stream_with_context(generate()), headers=headers), 200
 
 
-if _name_ == '_main_':
+if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
     app.run(debug=True)
