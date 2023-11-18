@@ -401,8 +401,7 @@ def update_song_rating(id):
     else:
         return jsonify({'error': 'Song not found or unauthorized access'}), 404
 
-
-
+# Route for single entry deletion
 @app.route('/songs/<int:id>/delete', methods=['POST'])
 def delete_song(id):
     token = request.headers.get('Authorization')
@@ -420,6 +419,46 @@ def delete_song(id):
         return jsonify({'message': 'Song deleted successfully!'}), 200
     else:
         return jsonify({'error': 'Song not found or unauthorized access'}), 404
+
+# Route for deletion by artist
+@app.route('/songs/artist/<string:artist>/delete', methods=['POST'])
+def delete_songs_by_artist(artist):
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    songs_to_delete = Song.query.filter_by(username=user.username, performer=artist).all()
+    if songs_to_delete:
+        for song in songs_to_delete:
+            db.session.delete(song)
+        db.session.commit()
+        return jsonify({'message': f'All songs by {artist} deleted successfully!'}), 200
+    else:
+        return jsonify({'error': 'No songs found for the specified artist or unauthorized access'}), 404
+
+# Route for deletion by album
+@app.route('/songs/album/<string:album>/delete', methods=['POST'])
+def delete_songs_by_album(album):
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    songs_to_delete = Song.query.filter_by(username=user.username, album=album).all()
+    if songs_to_delete:
+        for song in songs_to_delete:
+            db.session.delete(song)
+        db.session.commit()
+        return jsonify({'message': f'All songs from the album {album} deleted successfully!'}), 200
+    else:
+        return jsonify({'error': 'No songs found for the specified album or unauthorized access'}), 404
 
 
 '''
