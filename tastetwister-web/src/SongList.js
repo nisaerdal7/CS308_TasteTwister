@@ -241,8 +241,6 @@ function SongList() {
 
   };
 
-  
-
   const filteredSongs = songs.filter(
     (song) =>
       `${song.track_name} ${song.performer} ${song.album}`.toLowerCase().includes(searchTerm.toLowerCase())
