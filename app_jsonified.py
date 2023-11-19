@@ -49,7 +49,7 @@ class FriendRequest(db.Model):
     responded_at = db.Column(db.DateTime)
     
 class User(db.Model):
-    _tablename_ = 'users'
+    __tablename__ = 'users'
     username = db.Column(db.String(255), primary_key=True)
     password = db.Column(db.Text, nullable=False)  # In a real-world app, hash the password
     token = db.Column(db.String(255), nullable=False)  # Assuming token should be non-nullable
@@ -71,7 +71,7 @@ class User(db.Model):
                                         backref='receiver_user', lazy='dynamic')
 
 class Song(db.Model):
-    _tablename_ = 'songs'
+    __tablename__ = 'songs'
     id = db.Column(db.Integer, primary_key=True)
     track_name = db.Column(db.String(255), nullable=False)
     performer = db.Column(db.String(255), nullable=False)
@@ -529,6 +529,111 @@ def export_songs():
     }
 
     return Response(stream_with_context(generate()), headers=headers), 200
+
+
+
+@app.route('/send_invite', methods=['POST'])
+def send_invite():
+    token = request.headers.get('Authorization')
+    current_user = User.query.filter_by(token=token).first()
+    if not current_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    receiver_username = request.json.get('receiver')
+    if current_user.username == receiver_username:
+        return jsonify({'message': 'Cannot send invite to yourself'}), 400
+
+    receiver = User.query.filter_by(username=receiver_username).first()
+    if not receiver:
+        return jsonify({'message': 'Receiver not found'}), 404
+
+    existing_request = FriendRequest.query.filter_by(sender=current_user.username, receiver=receiver_username).first()
+
+    # Check if an existing request is 'denied', allow to send another invite
+    if existing_request and existing_request.status != 'denied':
+        return jsonify({'message': 'Invite already sent or pending'}), 400
+
+    new_invite = FriendRequest(sender=current_user.username, receiver=receiver_username, status='pending')
+    db.session.add(new_invite)
+    db.session.commit()
+
+    return jsonify({'message': 'Friend invite sent'}), 200
+
+
+@app.route('/incoming_invites', methods=['GET'])
+def view_incoming_invites():
+    token = request.headers.get('Authorization')
+    current_user = User.query.filter_by(token=token).first()
+    if not current_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    invites = FriendRequest.query.filter_by(receiver=current_user.username, status='pending').all()
+    invites_data = [{'id': invite.id, 'sender': invite.sender, 'sent_at': invite.sent_at} for invite in invites]
+
+    return jsonify(invites_data), 200
+
+
+
+@app.route('/respond_invite', methods=['POST'])
+def respond_invite():
+    token = request.headers.get('Authorization')
+    current_user = User.query.filter_by(token=token).first()
+    if not current_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    invite_id = request.json.get('invite_id')
+    response = request.json.get('response')  # 'accept' or 'deny'
+
+    invite = FriendRequest.query.filter_by(id=invite_id, receiver=current_user.username).first()
+    if not invite:
+        return jsonify({'message': 'Invite not found'}), 404
+
+    if response == 'accept':
+        # Add to friends
+        sender_user = User.query.filter_by(username=invite.sender).first()
+        if sender_user:
+            # Insert entries into the friendships table
+            current_user.friends.append(sender_user)
+            sender_user.friends.append(current_user)
+        else:
+            return jsonify({'message': 'Sender not found'}), 404
+    # Update invite status
+    invite.status = 'accepted' if response == 'accept' else 'denied'
+    invite.responded_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({'message': 'Invite responded'}), 200
+
+
+
+@app.route('/friends/<username>', methods=['GET'])
+def view_friends(username):
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+
+    friends = [friend.username for friend in user.friends]
+    return jsonify(friends), 200
+
+
+@app.route('/remove_friend', methods=['DELETE'])
+def remove_friend():
+    token = request.headers.get('Authorization')
+    current_user = User.query.filter_by(token=token).first()
+    if not current_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    friend_username = request.json.get('friend_username')
+    friend = User.query.filter_by(username=friend_username).first()
+    if not friend or friend not in current_user.friends:
+        return jsonify({'message': 'Friend not found'}), 404
+
+    current_user.friends.remove(friend)
+    db.session.commit()
+
+    return jsonify({'message': 'Friend removed'}), 200
+
+
 
 
 if _name_ == '_main_':
