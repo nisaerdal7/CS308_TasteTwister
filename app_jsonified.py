@@ -80,6 +80,8 @@ class Song(db.Model):
     username = db.Column(db.String(255), db.ForeignKey('users.username'), nullable=False)
     permission = db.Column(db.Boolean, nullable=True)  # not planning to use null but just in case
     
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
     def update_rating(self, new_rating):
         self.rating = new_rating
         db.session.commit()
@@ -288,7 +290,8 @@ def songs():
             "performer": song.performer,
             "album": song.album,
             "rating": song.rating,
-            "permission": song.permission  # Include permission in the response
+            "permission": song.permission,
+            "updated_at": song.updated_at  # Include the updated timestamp in the response
         } for song in songs
     ]), 200
 
@@ -334,7 +337,9 @@ def get_unrated_songs():
                 "track_name": song.track_name,
                 "performer": song.performer,
                 "album": song.album,
-                "rating": song.rating  # This will be None
+                "rating": song.rating,  # This will be None for unrated songs
+                "permission": song.permission,
+                "updated_at": song.updated_at  # Include the updated timestamp
             } for song in unrated_songs
         ]), 200
 
