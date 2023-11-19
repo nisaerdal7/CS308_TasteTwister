@@ -9,6 +9,7 @@ function LoginForm() {
     const [password, setPassword] = useState('');
     const [isSignUp, setIsSignUp] = useState(false);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [permission, setPermission] = useState(false);
     const navigate = useNavigate();
     
 
@@ -64,7 +65,7 @@ function LoginForm() {
         if (!username || !password) {
           alert('Both fields are required for signup.');
         } else {
-          const data = { username, password }; // Construct the data object
+          const data = { username, password, permission }; // Construct the data object
       
           // Send a POST request to the Flask registration endpoint
           fetch('http://127.0.0.1:5000/register', {
@@ -90,8 +91,11 @@ function LoginForm() {
             });
         }
       };
+
+    const handlePermissionChange = () => {
+        setPermission(!permission);
+    };
       
-    
     return (
         <div className='wrapper d-flex align-items-center justify-content-end w-100'>
             <div className='login'>
@@ -123,6 +127,16 @@ function LoginForm() {
                         <button type='submit' className='btn btn-success mt-2'>
                             SIGN UP
                         </button>
+                        <div className="checkbox-container">
+                            <label>
+                            Permission
+                            <input
+                                type="checkbox"
+                                checked={permission}
+                                onChange={handlePermissionChange}
+                            />
+                            </label>
+                        </div>
                     </form>
                 ) : (
                     <form onSubmit={handleLogin}>

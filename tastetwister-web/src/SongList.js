@@ -241,6 +241,57 @@ function SongList() {
 
   };
 
+  const handleExportSubmit = (selectedArtist, selectedRating) => {
+    const storedToken = localStorage.getItem('token');
+    console.log(storedToken);
+  
+    // Construct the export URL with selectedArtist and/or selectedRating if provided
+    let exportUrl = 'http://127.0.0.1:5000/export_songs';
+  
+    if (selectedArtist) {
+      exportUrl += `?performer=${encodeURIComponent(selectedArtist)}`;
+    }
+  
+    if (selectedRating) {
+      exportUrl += `${selectedArtist ? '&' : '?'}rating=${encodeURIComponent(selectedRating)}`;
+    }
+  
+    // Make the fetch request to the backend
+    fetch(exportUrl, {
+      method: 'GET',
+      headers: {
+        "Authorization": storedToken,
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.blob();
+      })
+      .then((blob) => {
+        // Create a Blob URL for the blob data
+        const url = window.URL.createObjectURL(new Blob([blob]));
+  
+        // Create a temporary link element and click it to trigger the download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'songs.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+  
+        // Revoke the Blob URL to free up resources
+        window.URL.revokeObjectURL(url);
+      })
+      .catch((error) => {
+        console.error('Error exporting songs:', error.message);
+      });
+  };
+  
+
+
   const filteredSongs = songs.filter(
     (song) =>
       `${song.track_name} ${song.performer} ${song.album}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -456,7 +507,7 @@ function SongList() {
             
   </div>
             
-    <button >Submit</button>
+    <button onClick={()=> handleExportSubmit(selectedArtist, selectedRating)}>Submit</button>
     
   </div>
 )}
