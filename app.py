@@ -47,11 +47,10 @@ db = SQLAlchemy(app)
 class User(db.Model):
     __tablename__ = 'users'
     username = db.Column(db.String(255), primary_key=True)
-    password = db.Column(db.Text, nullable=False)
-    token = db.Column(db.String(255), nullable=False)
-    spotify_token = db.Column(db.Text, nullable=True)
-    spotify_refresh_token = db.Column(db.Text, nullable=True)
+    password = db.Column(db.Text, nullable=False)  # In a real-world app, hash the password
+    token = db.Column(db.String(255), nullable=False)  # Assuming token should be non-nullable
     songs = db.relationship('Song', backref='user', lazy=True)
+
 
 class Song(db.Model):
     __tablename__ = 'songs'
@@ -65,6 +64,7 @@ class Song(db.Model):
     def update_rating(self, new_rating):
         self.rating = new_rating
         db.session.commit()
+
 
 @app.route('/')
 def home():
@@ -294,66 +294,83 @@ def login_spotify():
 @app.route('/callback')
 def spotify_callback():
     code = request.args.get('code')
-    token_info = sp_oauth.get_access_token(code, as_dict=True)
-    user = User.query.filter_by(username=session['username']).first()
-    if user:
-        user.spotify_token = json.dumps(token_info)
-        user.spotify_refresh_token = token_info['refresh_token']
-        db.session.commit()
+    token_info = sp_oauth.get_access_token(code, as_dict=True)  # Ensure this is a dictionary
+    session['token_info'] = json.dumps(token_info)  # Serialize and store as a string
     return redirect(url_for('songs'))
-
-# Define the refresh_spotify_token function
-def refresh_spotify_token(user):
-    refreshed_token_info = sp_oauth.refresh_access_token(user.spotify_refresh_token)
-    user.spotify_token = json.dumps(refreshed_token_info)
-    db.session.commit()
-    return refreshed_token_info['access_token']
-
-# Define the get_spotify_client function
-def get_spotify_client(user):
-    token_info = json.loads(user.spotify_token)
-    if sp_oauth.is_token_expired(token_info):
-        access_token = refresh_spotify_token(user)
-    else:
-        access_token = token_info['access_token']
-    return spotipy.Spotify(auth=access_token)
 
 @app.route('/import_spotify_playlist', methods=['POST'])
 def import_spotify_playlist():
-    if 'username' not in session:
-        flash('Please log in first.', 'danger')
-        return redirect(url_for('login'))
-
-    username = session['username']
     playlist_url = request.form.get('playlist_url')
     if not playlist_url:
         flash('Please provide a Spotify Playlist URL.', 'danger')
         return redirect(url_for('songs'))
     
+    # Extract playlist ID from the URL using a regular expression
     match = re.search(r'playlist/(\w+)', playlist_url)
     if not match:
         flash('Invalid Spotify Playlist URL provided.', 'danger')
         return redirect(url_for('songs'))
 
     playlist_id = match.group(1)
-    user = User.query.filter_by(username=username).first()
-    if user and user.spotify_token:
-        sp = get_spotify_client(user)
-        try:
-            results = sp.playlist_tracks(playlist_id)
-            for item in results['items']:
-                track = item['track']
-                track_name = track['name']
-                performer = ', '.join(artist['name'] for artist in track['artists'])
-                album = track['album']['name']
-                rating = 1  # Default rating, modify as needed
-                add_or_update_song(track_name, performer, album, rating, username)
-            flash('Playlist imported successfully!', 'success')
-        except spotipy.exceptions.SpotifyException as e:
-            flash(str(e), 'danger')
-    else:
-        flash('You need to log in with Spotify first!', 'danger')
+    if not session.get('token_info'):
+        flash('You need to log in first!', 'danger')
         return redirect(url_for('login_spotify'))
+    
+    token_info = json.loads(session.get('token_info', '{}'))  # Deserialize, with a default of an empty dict
+    if 'access_token' in token_info:
+        sp = spotipy.Spotify(auth=token_info['access_token'])
+
+    try:
+        results = sp.playlist_tracks(playlist_id)
+    except spotipy.exceptions.SpotifyException as e:
+        flash(str(e), 'danger')
+        return redirect(url_for('songs'))
+
+    # Loop through the tracks and add each to the database
+    for item in results['items']:
+        track = item['track']
+        track_name = track['name']
+        performer = ', '.join(artist['name'] for artist in track['artists'])
+        album = track['album']['name']
+        rating = 1  # Default rating, modify as needed
+        
+        # Use the helper function to add or update the song
+        add_or_update_song(track_name, performer, album, rating, session['username'])
+
+    flash('Playlist tracks added to your database!', 'success')
+    return redirect(url_for('songs'))
+    
+@app.route('/playlists/<string:playlist_id>/tracks')
+def add_playlist_tracks_to_db(playlist_id):
+    token_info = session.get('token_info', None)
+    if not token_info:
+        flash('You need to log in first!', 'danger')
+        return redirect(url_for('login_spotify'))
+
+    # Refresh token if it's expired
+    if sp_oauth.is_token_expired(token_info):
+        token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
+        session['token_info'] = token_info
+
+    sp = spotipy.Spotify(auth=token_info['access_token'])
+
+    # Fetch all tracks from the playlist
+    results = sp.playlist_tracks(playlist_id)
+
+    # Loop through the tracks and add each to the database
+    for item in results['items']:
+        # Ensure this is a track and not local or unavailable item
+        track = item.get('track', None)
+        if track and track.get('name') and track.get('artists'):
+            track_name = track['name']
+            performer = ', '.join(artist['name'] for artist in track['artists'])
+            album = track['album']['name'] if track['album'] else 'Single'
+            rating = 5  # Default rating, modify as needed
+            
+            # Use the helper function to add or update the song
+            add_or_update_song(track_name, performer, album, rating, session['username'])
+
+    flash('Playlist tracks added to your database!', 'success')
     return redirect(url_for('songs'))
 
 
