@@ -134,6 +134,10 @@ Headers:
  "Authorization": "user_token"
 }
 ```
+## ER Diagram
+<img width="487" alt="image" src="https://github.com/nisaerdal7/CS308_TasteTwister/assets/76566903/18465dae-d2d9-4f03-b254-5a8d3b0e38fa">
+
+
 ## MVP Features
 Our Minimum Viable Product (MVP) includes the following features:
 
