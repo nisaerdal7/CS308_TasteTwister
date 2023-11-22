@@ -15,10 +15,10 @@
   padding: 16px;
   text-decoration: none;
   font-size: 18px;
-  color: rgba(255, 255, 255, 0.645);
+  color: rgb(211, 206, 206);
   display: block;
-  background-color: rgba(0, 0, 0, 0.703); /* Darker black transparent background for links */
-  margin-bottom: 8px; /* Adjust the spacing between links */
+  background-color: rgba(0, 0, 0, 0.703);
+  margin-bottom: 8px;
 }
 
 /* Style for the content to shift when the sidebar is open */

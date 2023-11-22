@@ -9,11 +9,13 @@ function SongList() {
   const [songs, setSongs] = useState([]);
   const [selectedSongId, setSelectedSongId] = useState(0);
   const [selectedArtist, setSelectedArtist] = useState('');
+  const [selectedAlbum, setSelectedAlbum] = useState('');
 
   const [isPopupVisible, setPopupVisible] = useState(false);
   const [isManualPopupVisible, setManualPopupVisible] = useState(false);
   const [isEditPopupVisible, setEditPopupVisible] = useState(false);
   const [isExportPopupVisible, setExportPopupVisible] = useState(false);
+  const [isDeletePopupVisible, setDeletePopupVisible] = useState(false);
 
   const [songEntry, setSongEntry] = useState({
     track_name: "",
@@ -69,6 +71,38 @@ function SongList() {
           .then((updatedData) => {
               setSongs(updatedData);
               //console.log("Updated songs: ", updatedData);
+              setDeletePopupVisible(false);
+          })
+          .catch((error) => console.error('Error fetching updated songs:', error));
+      }
+      else {
+        alert("The song cannot be deleted!")
+      }
+      })
+  }
+
+  const handleDeleteArtist = (artist) =>{
+    const storedToken = localStorage.getItem('token');
+    const perf = "One Direction"
+    fetch(`http://127.0.0.1:5000/songs/artist/${artist}/delete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': storedToken,
+        'Content-Type': 'application/json', // Specify content type
+      },
+    })
+    .then((response) => response.json())
+    .then((data) => {
+      //console.log('Response from server:', data);
+      if (data.message === 'Song deleted successfully!') {
+          alert('Song deleted successfully!');
+  
+          // Fetch the updated list of songs
+          fetchSongs()
+          .then((updatedData) => {
+              setSongs(updatedData);
+              //console.log("Updated songs: ", updatedData);
+              setDeletePopupVisible(false);
           })
           .catch((error) => console.error('Error fetching updated songs:', error));
       }
@@ -350,7 +384,7 @@ function SongList() {
           />
             </span>
             <span
-            onClick={()=>handleDelete(song.id)}
+            onClick={()=>{setDeletePopupVisible(true);setSelectedSongId(song.id)}}
             style={{ cursor: 'pointer', marginLeft: '10px' }}
            >
           <img
@@ -467,6 +501,46 @@ function SongList() {
       </select>
     </div>
     <button onClick={()=> handleEditRatings(selectedSongId, selectedRating)}>Submit</button>
+  </div>
+)}
+{isDeletePopupVisible && (
+  <div className="popup">
+    <button className="close-button" onClick={()=>setDeletePopupVisible(false)}>
+      X
+    </button>
+    <div className="song-entry-row">
+       <span 
+          style={{marginTop: '20px' }}
+          >
+          <p>Delete all songs by the artist</p>
+           </span>
+       </div>
+    <div className="song-entry-row">
+      <input
+         type="text"
+         placeholder="Artist..."
+         value={selectedArtist}
+         onChange={(e) => setSelectedArtist(e.target.value)}
+      />
+    </div>
+    <button onClick={()=>handleDeleteArtist(selectedArtist)}>Submit</button>
+    <div className="song-entry-row">
+       <span 
+          style={{marginTop: '20px' }}
+          >
+          <p>Delete all songs by the album</p>
+           </span>
+       </div>
+    <div className="song-entry-row">
+      <input
+         type="text"
+         placeholder="Album..."
+         value={selectedAlbum}
+         onChange={(e) => setSelectedAlbum(e.target.value)}
+      />
+    </div>
+    <button>Submit</button>
+    <button onClick={()=>handleDelete(selectedSongId)}>Delete the song</button>
   </div>
 )}
 {isExportPopupVisible && (

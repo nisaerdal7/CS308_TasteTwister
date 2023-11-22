@@ -12,6 +12,7 @@ import secrets
 from flask_cors import CORS
 import spotifysearch
 from spotifysearch.client import Client
+from datetime import datetime
 
 
 app = Flask(__name__)
@@ -32,13 +33,42 @@ SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
 
 db = SQLAlchemy(app)
 
+friendships = db.Table('friendships',
+    db.Column('user1', db.String(255), db.ForeignKey('users.username'), primary_key=True),
+    db.Column('user2', db.String(255), db.ForeignKey('users.username'), primary_key=True)
+)
+
+class FriendRequest(db.Model):
+    __tablename__ = 'friend_requests'
+
+    id = db.Column(db.Integer, primary_key=True)
+    sender = db.Column(db.String(255), db.ForeignKey('users.username'), nullable=False)
+    receiver = db.Column(db.String(255), db.ForeignKey('users.username'), nullable=False)
+    status = db.Column(db.Enum('pending', 'accepted', 'denied'), nullable=False)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
+    responded_at = db.Column(db.DateTime)
+    
 class User(db.Model):
     __tablename__ = 'users'
     username = db.Column(db.String(255), primary_key=True)
     password = db.Column(db.Text, nullable=False)  # In a real-world app, hash the password
     token = db.Column(db.String(255), nullable=False)  # Assuming token should be non-nullable
     songs = db.relationship('Song', backref='user', lazy=True)
-
+    permission = db.Column(db.Boolean, nullable=False)
+    
+    
+    # Relationship for friendships
+    friends = db.relationship('User', 
+                            secondary=friendships,
+                            primaryjoin=(friendships.c.user1 == username),
+                            secondaryjoin=(friendships.c.user2 == username),
+                            backref=db.backref('users', lazy='dynamic'),
+                            lazy='dynamic')
+    # Relationships for friend requests
+    sent_requests = db.relationship('FriendRequest', foreign_keys=[FriendRequest.sender],
+                                    backref='sender_user', lazy='dynamic')
+    received_requests = db.relationship('FriendRequest', foreign_keys=[FriendRequest.receiver],
+                                        backref='receiver_user', lazy='dynamic')
 
 class Song(db.Model):
     __tablename__ = 'songs'
@@ -48,10 +78,14 @@ class Song(db.Model):
     album = db.Column(db.String(255), nullable=False)
     rating = db.Column(db.Integer, nullable=False)
     username = db.Column(db.String(255), db.ForeignKey('users.username'), nullable=False)
+    permission = db.Column(db.Boolean, nullable=True)  # not planning to use null but just in case
     
+    updated_at = db.Column(db.TIMESTAMP, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
     def update_rating(self, new_rating):
         self.rating = new_rating
         db.session.commit()
+
 
 
 def allowed_file(filename):
@@ -76,13 +110,16 @@ def add_or_update_song(user_track_name, user_performer, user_album, rating, user
 
         # Check if the song already exists in the database for this user
         existing_song = Song.query.filter_by(track_name=track_name, performer=performer, album=album, username=username).first()
-    
+
+        user = User.query.filter_by(username=username).first()
+        permission = user.permission
+        
         if existing_song:
             # Update the existing song with Spotify data
             existing_song.rating = rating  # Only the rating is updated as it's user-specific
         else:
             # Add a new song with Spotify data
-            new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username)
+            new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username, permission=permission)
             db.session.add(new_song)
     else:
         # Handle the case when no tracks are found
@@ -180,7 +217,8 @@ def register():
 
         hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
         unique_token = secrets.token_hex(16)
-        new_user = User(username=username, password=hashed_pw, token=unique_token)
+        permission = data.get('permission', False)  # we have no permission as default, shouldn't be a problem
+        new_user = User(username=username, password=hashed_pw, token=unique_token, permission=permission)
         
         db.session.add(new_user)
         db.session.commit()
@@ -246,14 +284,16 @@ def songs():
 
         songs = Song.query.filter_by(username=username).all()
         return jsonify([
-            {
-                "id": song.id,
-                "track_name": song.track_name,
-                "performer": song.performer,
-                "album": song.album,
-                "rating": song.rating
-            } for song in songs
-        ]), 200
+        {
+            "id": song.id,
+            "track_name": song.track_name,
+            "performer": song.performer,
+            "album": song.album,
+            "rating": song.rating,
+            "permission": song.permission,
+            "updated_at": song.updated_at  # Include the updated timestamp in the response
+        } for song in songs
+    ]), 200
 
     # Handle POST requests
     if request.method == 'POST':
@@ -297,9 +337,13 @@ def get_unrated_songs():
                 "track_name": song.track_name,
                 "performer": song.performer,
                 "album": song.album,
-                "rating": song.rating  # This will be None
+                "rating": song.rating,  # This will be None for unrated songs
+                "permission": song.permission,
+                "updated_at": song.updated_at  # Include the updated timestamp
             } for song in unrated_songs
         ]), 200
+
+
 
 
 @app.route('/upload_songs', methods=['POST'])
@@ -362,8 +406,7 @@ def update_song_rating(id):
     else:
         return jsonify({'error': 'Song not found or unauthorized access'}), 404
 
-
-
+# Route for single entry deletion
 @app.route('/songs/<int:id>/delete', methods=['POST'])
 def delete_song(id):
     token = request.headers.get('Authorization')
@@ -382,6 +425,47 @@ def delete_song(id):
     else:
         return jsonify({'error': 'Song not found or unauthorized access'}), 404
 
+# Route for deletion by artist
+@app.route('/songs/artist/<string:artist>/delete', methods=['POST'])
+def delete_songs_by_artist(artist):
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+    print(user.username, artist)
+    songs_to_delete = Song.query.filter_by(username=user.username, performer=artist).all()
+    print(songs_to_delete)
+    if songs_to_delete:
+        for song in songs_to_delete:
+            db.session.delete(song)
+        db.session.commit()
+        return jsonify({'message': f'All songs by {artist} deleted successfully!'}), 200
+    else:
+        return jsonify({'error': 'No songs found for the specified artist or unauthorized access'}), 404
+
+# Route for deletion by album
+@app.route('/songs/album/<string:album>/delete', methods=['POST'])
+def delete_songs_by_album(album):
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    songs_to_delete = Song.query.filter_by(username=user.username, album=album).all()
+    if songs_to_delete:
+        for song in songs_to_delete:
+            db.session.delete(song)
+        db.session.commit()
+        return jsonify({'message': f'All songs from the album {album} deleted successfully!'}), 200
+    else:
+        return jsonify({'error': 'No songs found for the specified album or unauthorized access'}), 404
+
 
 '''
 Now, you can call the export route with additional query parameters like so:
@@ -392,7 +476,7 @@ Now, you can call the export route with additional query parameters like so:
 @app.route('/export_songs', methods=['GET'])
 def export_songs():
     # Validate the token
-    token = request.args.get('Authorization')
+    token = request.headers.get('Authorization')
     if not token:
         return jsonify({'error': 'Authorization token is required'}), 401
 
@@ -446,6 +530,111 @@ def export_songs():
     }
 
     return Response(stream_with_context(generate()), headers=headers), 200
+
+
+
+@app.route('/send_invite', methods=['POST'])
+def send_invite():
+    token = request.headers.get('Authorization')
+    current_user = User.query.filter_by(token=token).first()
+    if not current_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    receiver_username = request.json.get('receiver')
+    if current_user.username == receiver_username:
+        return jsonify({'message': 'Cannot send invite to yourself'}), 400
+
+    receiver = User.query.filter_by(username=receiver_username).first()
+    if not receiver:
+        return jsonify({'message': 'Receiver not found'}), 404
+
+    existing_request = FriendRequest.query.filter_by(sender=current_user.username, receiver=receiver_username).first()
+
+    # Check if an existing request is 'denied', allow to send another invite
+    if existing_request and existing_request.status != 'denied':
+        return jsonify({'message': 'Invite already sent or pending'}), 400
+
+    new_invite = FriendRequest(sender=current_user.username, receiver=receiver_username, status='pending')
+    db.session.add(new_invite)
+    db.session.commit()
+
+    return jsonify({'message': 'Friend invite sent'}), 200
+
+
+@app.route('/incoming_invites', methods=['GET'])
+def view_incoming_invites():
+    token = request.headers.get('Authorization')
+    current_user = User.query.filter_by(token=token).first()
+    if not current_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    invites = FriendRequest.query.filter_by(receiver=current_user.username, status='pending').all()
+    invites_data = [{'id': invite.id, 'sender': invite.sender, 'sent_at': invite.sent_at} for invite in invites]
+
+    return jsonify(invites_data), 200
+
+
+
+@app.route('/respond_invite', methods=['POST'])
+def respond_invite():
+    token = request.headers.get('Authorization')
+    current_user = User.query.filter_by(token=token).first()
+    if not current_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    invite_id = request.json.get('invite_id')
+    response = request.json.get('response')  # 'accept' or 'deny'
+
+    invite = FriendRequest.query.filter_by(id=invite_id, receiver=current_user.username).first()
+    if not invite:
+        return jsonify({'message': 'Invite not found'}), 404
+
+    if response == 'accept':
+        # Add to friends
+        sender_user = User.query.filter_by(username=invite.sender).first()
+        if sender_user:
+            # Insert entries into the friendships table
+            current_user.friends.append(sender_user)
+            sender_user.friends.append(current_user)
+        else:
+            return jsonify({'message': 'Sender not found'}), 404
+    # Update invite status
+    invite.status = 'accepted' if response == 'accept' else 'denied'
+    invite.responded_at = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify({'message': 'Invite responded'}), 200
+
+
+
+@app.route('/friends/<username>', methods=['GET'])
+def view_friends(username):
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+
+    friends = [friend.username for friend in user.friends]
+    return jsonify(friends), 200
+
+
+@app.route('/remove_friend', methods=['DELETE'])
+def remove_friend():
+    token = request.headers.get('Authorization')
+    current_user = User.query.filter_by(token=token).first()
+    if not current_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    friend_username = request.json.get('friend_username')
+    friend = User.query.filter_by(username=friend_username).first()
+    if not friend or friend not in current_user.friends:
+        return jsonify({'message': 'Friend not found'}), 404
+
+    current_user.friends.remove(friend)
+    db.session.commit()
+
+    return jsonify({'message': 'Friend removed'}), 200
+
+
 
 
 if __name__ == '__main__':
