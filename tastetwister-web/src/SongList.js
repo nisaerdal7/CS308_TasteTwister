@@ -94,8 +94,8 @@ function SongList() {
     .then((response) => response.json())
     .then((data) => {
       //console.log('Response from server:', data);
-      if (data.message === 'Song deleted successfully!') {
-          alert('Song deleted successfully!');
+      if (data.message === 'All songs by ' + artist +' deleted successfully!') {
+          alert(data.message);
   
           // Fetch the updated list of songs
           fetchSongs()
@@ -107,7 +107,36 @@ function SongList() {
           .catch((error) => console.error('Error fetching updated songs:', error));
       }
       else {
-        alert("The song cannot be deleted!")
+        alert("The songs cannot be deleted!")
+      }
+      })
+  }
+  const handleDeleteAlbum = (album) =>{
+    const storedToken = localStorage.getItem('token');
+    fetch(`http://127.0.0.1:5000/songs/album/${album}/delete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': storedToken,
+        'Content-Type': 'application/json', // Specify content type
+      },
+    })
+    .then((response) => response.json())
+    .then((data) => {
+      //console.log('Response from server:', data);
+      if (data.message === 'All songs from the album ' + album +' deleted successfully!') {
+          alert(data.message);
+  
+          // Fetch the updated list of songs
+          fetchSongs()
+          .then((updatedData) => {
+              setSongs(updatedData);
+              //console.log("Updated songs: ", updatedData);
+              setDeletePopupVisible(false);
+          })
+          .catch((error) => console.error('Error fetching updated songs:', error));
+      }
+      else {
+        alert("The songs cannot be deleted!")
       }
       })
   }
@@ -523,7 +552,7 @@ function SongList() {
          onChange={(e) => setSelectedArtist(e.target.value)}
       />
     </div>
-    <button onClick={()=>handleDeleteArtist(selectedArtist)}>Submit</button>
+    <button onClick={()=>{handleDeleteArtist(selectedArtist);setSelectedArtist('')}}>Submit</button>
     <div className="song-entry-row">
        <span 
           style={{marginTop: '20px' }}
@@ -539,7 +568,7 @@ function SongList() {
          onChange={(e) => setSelectedAlbum(e.target.value)}
       />
     </div>
-    <button>Submit</button>
+    <button onClick={()=>{handleDeleteAlbum(selectedAlbum);setSelectedAlbum('')}}>Submit</button>
     <button onClick={()=>handleDelete(selectedSongId)}>Delete the song</button>
   </div>
 )}
