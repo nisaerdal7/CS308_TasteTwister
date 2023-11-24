@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom';
 import LoginForm from './Login';
 import reportWebVitals from './reportWebVitals';
 import Home from './Home';
+import Profile from './Profile';
 import RateItPage from './RateItPage';
 import {BrowserRouter, Route, Routes } from 'react-router-dom';
 
@@ -17,7 +18,7 @@ ReactDOM.render(
         <Route exact path="/home" element={<Home />} />
         <Route exact path="/rateitpage" element={<RateItPage />} />
         <Route exact path="/" element={<LoginForm />} />
-      
+        <Route exact path="/profile" element={<Profile />} />
         </Routes>
     
     </div>

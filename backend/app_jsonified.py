@@ -268,7 +268,6 @@ def logout():
 
     # Invalidate the token
     user.token = None
-    db.session.commit()
 
     return jsonify({'message': 'Logged out successfully'}), 200
 
