@@ -547,6 +547,15 @@ def send_invite():
     if not receiver:
         return jsonify({'message': 'Receiver not found'}), 404
 
+    # Check for existing friendship
+    existing_friendship = db.session.query(friendships).filter(
+        (friendships.c.user1 == current_user.username) & (friendships.c.user2 == receiver_username) |
+        (friendships.c.user1 == receiver_username) & (friendships.c.user2 == current_user.username)
+    ).first()
+
+    if existing_friendship:
+        return jsonify({'message': 'You are already friends'}), 400
+
     existing_request = FriendRequest.query.filter_by(sender=current_user.username, receiver=receiver_username).first()
 
     # Check if an existing request is 'denied', allow to send another invite
@@ -558,6 +567,7 @@ def send_invite():
     db.session.commit()
 
     return jsonify({'message': 'Friend invite sent'}), 200
+
 
 
 @app.route('/incoming_invites', methods=['GET'])
@@ -616,7 +626,7 @@ def view_friends(username):
     return jsonify(friends), 200
 
 
-@app.route('/remove_friend', methods=['DELETE'])
+@app.route('/remove_friend', methods=['POST'])  # Changed from DELETE to POST
 def remove_friend():
     token = request.headers.get('Authorization')
     current_user = User.query.filter_by(token=token).first()
@@ -632,6 +642,7 @@ def remove_friend():
     db.session.commit()
 
     return jsonify({'message': 'Friend removed'}), 200
+
 
 
 
