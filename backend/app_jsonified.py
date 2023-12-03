@@ -5,6 +5,7 @@ import csv
 import json
 from werkzeug.utils import secure_filename
 from sqlalchemy import MetaData, Table
+from sqlalchemy import and_
 from flask import Response, stream_with_context
 from io import StringIO
 from flask_bcrypt import Bcrypt
@@ -12,7 +13,8 @@ import secrets
 from flask_cors import CORS
 import spotifysearch
 from spotifysearch.client import Client
-from datetime import datetime
+from datetime import datetime, timedelta
+import random
 
 
 app = Flask(__name__)
@@ -268,6 +270,7 @@ def logout():
 
     # Invalidate the token
     user.token = None
+    db.session.commit()
 
     return jsonify({'message': 'Logged out successfully'}), 200
 
@@ -434,9 +437,8 @@ def delete_songs_by_artist(artist):
     user = User.query.filter_by(token=token).first()
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
-    print(user.username, artist)
+
     songs_to_delete = Song.query.filter_by(username=user.username, performer=artist).all()
-    print(songs_to_delete)
     if songs_to_delete:
         for song in songs_to_delete:
             db.session.delete(song)
@@ -547,6 +549,15 @@ def send_invite():
     if not receiver:
         return jsonify({'message': 'Receiver not found'}), 404
 
+    # Check for existing friendship
+    existing_friendship = db.session.query(friendships).filter(
+        (friendships.c.user1 == current_user.username) & (friendships.c.user2 == receiver_username) |
+        (friendships.c.user1 == receiver_username) & (friendships.c.user2 == current_user.username)
+    ).first()
+
+    if existing_friendship:
+        return jsonify({'message': 'You are already friends'}), 400
+
     existing_request = FriendRequest.query.filter_by(sender=current_user.username, receiver=receiver_username).first()
 
     # Check if an existing request is 'denied', allow to send another invite
@@ -558,6 +569,7 @@ def send_invite():
     db.session.commit()
 
     return jsonify({'message': 'Friend invite sent'}), 200
+
 
 
 @app.route('/incoming_invites', methods=['GET'])
@@ -616,7 +628,7 @@ def view_friends(username):
     return jsonify(friends), 200
 
 
-@app.route('/remove_friend', methods=['DELETE'])
+@app.route('/remove_friend', methods=['POST'])  # Changed from DELETE to POST
 def remove_friend():
     token = request.headers.get('Authorization')
     current_user = User.query.filter_by(token=token).first()
@@ -632,6 +644,190 @@ def remove_friend():
     db.session.commit()
 
     return jsonify({'message': 'Friend removed'}), 200
+
+
+
+@app.route('/recommend_playlist_all_users', methods=['GET'])
+def recommend_playlist_all_users():
+    # Retrieve token from the request headers
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    # Authenticate user based on the token
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Extract additional query parameters
+    username = user.username  # Assuming the username is derived from the authenticated user
+    timeframe = request.args.get('timeframe', 'all-time')
+
+    # Fetch 2 songs from the user with rating >= 4
+    user_songs = Song.query.filter(
+        Song.username == username, 
+        Song.rating >= 4
+    ).order_by(db.func.random()).limit(2).all()
+
+    # Fetch 8 songs from other users with rating >= 4
+    query = Song.query.filter(
+        Song.username != username, 
+        Song.permission.is_(True), 
+        Song.rating >= 4
+    )
+    if timeframe == 'recent':
+        recent_time = datetime.now() - timedelta(hours=24)
+        query = query.filter(Song.updated_at >= recent_time)
+
+    other_songs = query.order_by(db.func.random()).limit(8).all()
+
+    # Combine songs to create the playlist
+    playlist = user_songs + other_songs
+
+    # Randomize the order of the songs in the playlist
+    random.shuffle(playlist)
+
+    # Convert songs to JSON format
+    playlist_json = [{
+        "id": song.id,
+        "track_name": song.track_name,
+        "performer": song.performer,
+        "album": song.album,
+        "rating": song.rating,
+        "username": song.username,
+        "permission": song.permission,
+        "updated_at": song.updated_at
+    } for song in playlist]
+
+    return jsonify(playlist_json), 200
+
+@app.route('/recommend_playlist_friends_duo', methods=['GET'])
+def recommend_playlist_friends_duo():
+    # Retrieve token from the request headers
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    # Authenticate user based on the token
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    friend_username = request.args.get('friend_username')
+    if not friend_username:
+        return jsonify({'error': 'Friend username is required'}), 400
+
+    # Check if friend user exists and if they are friends
+    friend = User.query.filter_by(username=friend_username).first()
+    if not friend or friend not in user.friends:
+        return jsonify({'error': 'Friend not found or users are not friends'}), 404
+
+    # Extract timeframe from query parameters
+    timeframe = request.args.get('timeframe', 'all-time')
+
+    # Define a base query for fetching songs
+    base_query = lambda username: Song.query.filter(
+        Song.username == username, 
+        Song.rating >= 4
+    )
+
+    # Apply timeframe filter if needed
+    if timeframe == 'recent':
+        recent_time = datetime.now() - timedelta(hours=24)
+        user_songs_query = base_query(user.username).filter(Song.updated_at >= recent_time)
+        friend_songs_query = base_query(friend_username).filter(Song.updated_at >= recent_time)
+    else:
+        user_songs_query = base_query(user.username)
+        friend_songs_query = base_query(friend_username)
+
+    # Fetch songs with random order and limit
+    user_songs = user_songs_query.order_by(db.func.random()).limit(5).all()
+    friend_songs = friend_songs_query.order_by(db.func.random()).limit(5).all()
+
+    # Combine and shuffle the playlist
+    playlist = user_songs + friend_songs
+    random.shuffle(playlist)
+
+    # Convert to JSON
+    playlist_json = [{
+        "id": song.id,
+        "track_name": song.track_name,
+        "performer": song.performer,
+        "album": song.album,
+        "rating": song.rating,
+        "username": song.username,
+        "permission": song.permission,
+        "updated_at": song.updated_at
+    } for song in playlist]
+
+    return jsonify(playlist_json), 200
+
+
+
+@app.route('/recommend_playlist_from_all_friends', methods=['GET'])
+def recommend_playlist_from_all_friends():
+    # Retrieve token from the request headers
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    # Authenticate user based on the token
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Extract timeframe from query parameters
+    timeframe = request.args.get('timeframe', 'all-time')
+
+    # Define a base query for fetching songs
+    base_query = lambda username: Song.query.filter(
+        Song.username == username, 
+        Song.rating >= 4
+    )
+
+    # Apply timeframe filter if needed
+    if timeframe == 'recent':
+        recent_time = datetime.now() - timedelta(hours=24)
+        user_songs_query = base_query(user.username).filter(Song.updated_at >= recent_time)
+        friend_songs_query = Song.query.join(
+            User, User.username == Song.username
+        ).filter(
+            User.username != user.username, 
+            User.username.in_([friend.username for friend in user.friends]), 
+            Song.rating >= 4,
+            Song.updated_at >= recent_time
+        )
+    else:
+        user_songs_query = base_query(user.username)
+        friend_songs_query = Song.query.join(
+            User, User.username == Song.username
+        ).filter(
+            User.username != user.username, 
+            User.username.in_([friend.username for friend in user.friends]), 
+            Song.rating >= 4
+        )
+
+    # Fetch songs with random order and limit
+    user_songs = user_songs_query.order_by(db.func.random()).limit(2).all()
+    friend_songs = friend_songs_query.order_by(db.func.random()).limit(8).all()
+
+    # Combine and shuffle the playlist
+    playlist = user_songs + friend_songs
+    random.shuffle(playlist)
+
+    # Convert to JSON
+    playlist_json = [{
+        "id": song.id,
+        "track_name": song.track_name,
+        "performer": song.performer,
+        "album": song.album,
+        "rating": song.rating,
+        "username": song.username,
+        "permission": song.permission,
+        "updated_at": song.updated_at
+    } for song in playlist]
+
+    return jsonify(playlist_json), 200
 
 
 

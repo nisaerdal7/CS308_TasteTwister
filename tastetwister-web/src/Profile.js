@@ -1,23 +1,21 @@
-// Profile.js
-
-import React, { useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import './Profile.css';
 import myProfileIcon from './images/myprofileicon.jpg';
 import Sidebar from './Sidebar';
 
 const Profile = () => {
-  // Mock data and actions
   const username = localStorage.getItem('username');
   const [friendsList, setFriendsList] = useState([]);
-
   const [newFriend, setNewFriend] = useState('');
-  const [activeTab, setActiveTab] = useState('received'); // Default to received tab
+  const [activeTab, setActiveTab] = useState('received');
   const [incomingRequests, setIncomingRequests] = useState([]);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState('');
 
   useEffect(() => {
     fetchRequests();
     fetchFriends();
-  }, []); // Fetch requests on component mount
+  }, []);
 
   const fetchRequests = () => {
     const storedToken = localStorage.getItem('token');
@@ -45,7 +43,7 @@ const Profile = () => {
           'Content-Type': 'application/json',
         },
       });
-  
+
       if (response.ok) {
         const friendsData = await response.json();
         setFriendsList(friendsData);
@@ -70,13 +68,12 @@ const Profile = () => {
     })
       .then((response) => response.json())
       .then((data) => {
-        alert(data.message); // Display a message, you can replace this with your own logic
-        fetchRequests(); // Refresh the requests after sending
-        
+        alert(data.message);
+        fetchRequests();
       })
       .catch((error) => console.error('Error sending friend request:', error));
 
-    setNewFriend(''); // Clear the input after sending
+    setNewFriend('');
   };
 
   const handleRespondInvite = (inviteId, response) => {
@@ -95,11 +92,40 @@ const Profile = () => {
     })
       .then((response) => response.json())
       .then((data) => {
-        alert(data.message); // Display a message, you can replace this with your own logic
-        fetchRequests(); // Refresh the requests after responding
+        alert(data.message);
+        fetchRequests();
         fetchFriends();
       })
       .catch((error) => console.error('Error responding to friend invite:', error));
+  };
+
+  const handleRemoveFriendClick = (friend) => {
+    setSelectedFriend(friend);
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmation = (confirmed) => {
+    if (confirmed) {
+      const storedToken = localStorage.getItem('token');
+
+      fetch('http://127.0.0.1:5000/remove_friend', {
+        method: 'POST',
+        headers: {
+          'Authorization': storedToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ friend_username: selectedFriend }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          alert(data.message);
+          fetchFriends();
+        })
+        .catch((error) => console.error('Error removing friend:', error));
+    }
+
+    setShowConfirmation(false);
+    setSelectedFriend('');
   };
 
   return (
@@ -113,11 +139,19 @@ const Profile = () => {
           </div>
 
           <div className="profile-section">
-          <ul>
-          {friendsList.map((friend) => (
-            <li key={friend}>{friend}</li>
-          ))}
-        </ul>
+            <ul>
+              {friendsList.map((friend) => (
+                <li key={friend}>
+                  {friend}
+                  <span
+                    className="remove-icon"
+                    onClick={() => handleRemoveFriendClick(friend)}
+                  >
+                    ❌
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </div>
@@ -140,23 +174,23 @@ const Profile = () => {
               </div>
             </div>
           </div>
+
           {activeTab === 'received' && (
             <div className="profile-section">
-            <h3>Received Requests</h3>
-            <ul>
-              {incomingRequests.map((request) => (
-              <li key={request.id}>
-                <span>{request.sender}</span>
-                 <div className="request-options">
-                  <button onClick={() => handleRespondInvite(request.id, 'accept')}>Accept</button>
-                  <button onClick={() => handleRespondInvite(request.id, 'deny')}>Deny</button>
-                </div>
-              </li>
-            ))}
-            </ul>
-        </div>
-        )}
-          
+              <h3>Received Requests</h3>
+              <ul>
+                {incomingRequests.map((request) => (
+                  <li key={request.id}>
+                    <span>{request.sender}</span>
+                    <div className="request-options">
+                      <button onClick={() => handleRespondInvite(request.id, 'accept')}>Accept</button>
+                      <button onClick={() => handleRespondInvite(request.id, 'deny')}>Deny</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {activeTab === 'sent' && (
             <div className="profile-section">
@@ -166,7 +200,6 @@ const Profile = () => {
           )}
 
           <div className="profile-section">
-            
             <input
               type="text"
               placeholder="Enter username"
@@ -177,6 +210,18 @@ const Profile = () => {
           </div>
         </div>
       </div>
+
+      {showConfirmation && (
+        <div className="popup-container">
+          <div className="popup">
+            <p>{`Are you sure you want to remove ${selectedFriend} from your friends?`}</p>
+            <div className="button-container">
+              <button onClick={() => handleConfirmation(true)}>Yes</button>
+              <button onClick={() => handleConfirmation(false)}>No</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
