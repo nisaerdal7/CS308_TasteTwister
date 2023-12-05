@@ -4,7 +4,7 @@ import os
 import csv
 import json
 from werkzeug.utils import secure_filename
-from sqlalchemy import MetaData, Table
+from sqlalchemy import MetaData, Table, func, extract
 from sqlalchemy import and_
 from flask import Response, stream_with_context
 from io import StringIO
@@ -828,6 +828,111 @@ def recommend_playlist_from_all_friends():
 
     return jsonify(playlist_json), 200
 
+
+def filter_songs_by_timeframe(query, timeframe):
+    if timeframe == 'last_24_hours':
+        query = query.filter(Song.updated_at >= datetime.now() - timedelta(hours=24))
+    elif timeframe == 'last_7_days':
+        query = query.filter(Song.updated_at >= datetime.now() - timedelta(days=7))
+    return query
+
+def get_top_albums_or_performers(query, attribute):
+    return (query.with_entities(attribute, func.avg(Song.rating).label('average_rating'))
+            .group_by(attribute)
+            .order_by(func.avg(Song.rating).desc())
+            .limit(10)
+            .all())
+
+
+@app.route('/stats/all-time/<username>', methods=['GET'])
+@app.route('/stats/last-7-days/<username>', methods=['GET'])
+@app.route('/stats/last-24-hours/<username>', methods=['GET'])
+def user_stats(username):
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    timeframe = request.path.split('/')[2].replace('-', '_')
+    songs_query = Song.query.filter_by(username=username)
+    songs_query = filter_songs_by_timeframe(songs_query, timeframe)
+
+    # Top 10 songs
+    top_songs = (songs_query.order_by(Song.rating.desc())
+                 .limit(10)
+                 .all())
+    top_songs_data = [{'id': song.id, 'track_name': song.track_name, 'rating': song.rating} for song in top_songs]
+
+    # Top 10 albums
+    top_albums = get_top_albums_or_performers(songs_query, Song.album)
+    top_albums_data = [{'album': album[0], 'average_rating': album[1]} for album in top_albums]
+
+    # Top 10 performers
+    top_performers = get_top_albums_or_performers(songs_query, Song.performer)
+    top_performers_data = [{'performer': performer[0], 'average_rating': performer[1]} for performer in top_performers]
+
+    return jsonify({
+        'top_songs': top_songs_data,
+        'top_albums': top_albums_data,
+        'top_performers': top_performers_data
+    }), 200
+
+
+def get_filtered_songs_stats(query, timeframe, filter_by=None, filter_value=None):
+    # Filter by timeframe
+    if timeframe == 'last_24_hours':
+        time_threshold = datetime.now() - timedelta(hours=24)
+    elif timeframe == 'last_7_days':
+        time_threshold = datetime.now() - timedelta(days=7)
+    else:
+        time_threshold = None
+
+    if time_threshold:
+        query = query.filter(Song.updated_at >= time_threshold)
+
+    # Additional filtering by album or performer
+    if filter_by and filter_value:
+        if filter_by == 'album':
+            query = query.filter(Song.album == filter_value)
+        elif filter_by == 'performer':
+            query = query.filter(Song.performer == filter_value)
+
+    # Group by day and calculate average rating per day
+    grouped_query = (query.with_entities(
+                        extract('day', Song.updated_at).label('day'),
+                        extract('month', Song.updated_at).label('month'),
+                        extract('year', Song.updated_at).label('year'),
+                        func.avg(Song.rating).label('avg_rating'))
+                     .group_by('year', 'month', 'day')
+                     .order_by('year', 'month', 'day'))
+
+    daily_avg_ratings = []
+    for row in grouped_query.all():
+        day_str = f"{int(row.year)}-{int(row.month):02d}-{int(row.day):02d}"
+        daily_avg_ratings.append((day_str, float(row.avg_rating)))
+
+    # Overall mean rating for the timeframe
+    mean_rating = query.with_entities(func.avg(Song.rating)).scalar()
+
+    return mean_rating, daily_avg_ratings
+
+
+@app.route('/stats/mean/all-time', methods=['GET'])
+@app.route('/stats/mean/last-7-days', methods=['GET'])
+@app.route('/stats/mean/last-24-hours', methods=['GET'])
+def mean_stats():
+    timeframe = request.path.split('/')[3].replace('-', '_')
+    filter_by = request.args.get('filter_by')  # 'album' or 'performer'
+    filter_value = request.args.get('filter_value')  # Name of the album or performer
+
+    query = Song.query
+    mean_rating, daily_avg_ratings = get_filtered_songs_stats(query, timeframe, filter_by, filter_value)
+
+    daily_ratings_format = {f't{i+1}': rating for i, (_, rating) in enumerate(daily_avg_ratings)}
+
+    return jsonify({
+        'mean_rating': mean_rating,
+        'daily_average_ratings': daily_ratings_format
+    }), 200
 
 
 
