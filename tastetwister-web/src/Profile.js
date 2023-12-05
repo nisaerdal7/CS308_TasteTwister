@@ -213,7 +213,7 @@ const Profile = () => {
 
       {showConfirmation && (
         <div className="popup-container">
-          <div className="popup">
+          <div className="profile-popup">
             <p>{`Are you sure you want to remove ${selectedFriend} from your friends?`}</p>
             <div className="button-container">
               <button onClick={() => handleConfirmation(true)}>Yes</button>
