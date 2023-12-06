@@ -16,7 +16,7 @@ from spotifysearch.client import Client
 from datetime import datetime, timedelta
 import random
 
-app = Flask(_name_)
+app = Flask(__name__)
 CORS(app, supports_credentials=True)
 bcrypt = Bcrypt(app)
 
@@ -920,7 +920,7 @@ def recommend_playlist_from_all_friends():
     return jsonify(playlist_json), 200
 
 
-if __name__ == '_main_':
+if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
     app.run(debug=True)
