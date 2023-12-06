@@ -7,6 +7,7 @@ import Home from './Home';
 import Profile from './Profile';
 import RateItPage from './RateItPage';
 import {BrowserRouter, Route, Routes } from 'react-router-dom';
+import TasteTwistPage from './TasteTwistPage';
 
 ReactDOM.render(
   
@@ -19,6 +20,7 @@ ReactDOM.render(
         <Route exact path="/rateitpage" element={<RateItPage />} />
         <Route exact path="/" element={<LoginForm />} />
         <Route exact path="/profile" element={<Profile />} />
+        <Route exact path="/tasteit" element={<TasteTwistPage />} />
         </Routes>
     
     </div>
