@@ -208,11 +208,11 @@ function SongList() {
   
 
   //TO-DO: URL thing does not work properly yet, waiting for backend implementation.
-  const [urlInput, setUrlInput] = useState("");
+  /*const [urlInput, setUrlInput] = useState("");
   //To access the urlInput value later for further use
   const handleUrlInputChange = (e) => {
     setUrlInput(e.target.value); // Update the URL state
-  };
+  };*/
 
   const handleSongInputChange = (e, fieldName) => {
     setSongEntry({
@@ -457,13 +457,6 @@ function SongList() {
           <button className="close-button" onClick={hideManualPopup}>
             X
           </button>
-          <input
-            type="text"
-            placeholder="URL.."
-            className="url-input"
-            value={urlInput}
-            onChange={handleUrlInputChange}
-            />
           <div className="song-entry-container">
             <div className="song-entry-row">
                 <p>Enter your song!</p>

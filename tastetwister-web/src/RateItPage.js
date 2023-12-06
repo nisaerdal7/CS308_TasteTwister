@@ -9,7 +9,6 @@ function RateItPage() {
     return (
       <div className="rate-it">
         <Sidebar/>
-        <p>This is our RateIt page.</p>
         <RateIt/>
       </div>
     );
