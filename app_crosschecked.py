@@ -87,29 +87,47 @@ class Song(db.Model):
         self.rating = new_rating
         db.session.commit()
 
-def add_or_update_song(user_track_name, user_performer, user_album, rating, username):
-    # Convert empty string in rating to None
-    if rating == '':
-        rating = None
 
-    # Check if the song already exists in the database for this user
-    existing_song = Song.query.filter_by(track_name=user_track_name, performer=user_performer, album=user_album, username=username).first()
-
-    user = User.query.filter_by(username=username).first()
-    permission = user.permission
-
-    if existing_song:
-        # Update the existing song with user-provided data
-        existing_song.rating = rating  # Only the rating is updated as it's user-specific
-    else:
-        # Add a new song with user-provided data
-        new_song = Song(track_name=user_track_name, performer=user_performer, album=user_album, rating=rating, username=username, permission=permission)
-        db.session.add(new_song)
-
-    db.session.commit()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def add_or_update_song(user_track_name, user_performer, user_album, rating, username):
+    # Convert empty string in rating to None
+    if rating == '':  # <-- This is the added line
+        rating = None  # <-- This is the added line
+
+    
+    #Add a new song or update an existing one with verified information from Spotify.
+    myclient = Client(SPOTIFY_CLIENT_ID , SPOTIFY_CLIENT_SECRET)
+    search_result = myclient.search(user_track_name + " " + user_performer + " " + user_album)
+    tracks = search_result.get_tracks()
+    if tracks:
+        track = tracks[0]
+        # Now you can process the track as before
+        track_name = track.name
+        performer = track.artists[0].name
+        album = track.album.name
+
+        # Check if the song already exists in the database for this user
+        existing_song = Song.query.filter_by(track_name=track_name, performer=performer, album=album, username=username).first()
+
+        user = User.query.filter_by(username=username).first()
+        permission = user.permission
+        
+        if existing_song:
+            # Update the existing song with Spotify data
+            existing_song.rating = rating  # Only the rating is updated as it's user-specific
+        else:
+            # Add a new song with Spotify data
+            new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username, permission=permission)
+            db.session.add(new_song)
+    else:
+        # Handle the case when no tracks are found
+        flash('No tracks found on Spotify with the provided details.', 'warning')
+        # You can redirect the user or take any other action as required
+    
+    db.session.commit()
 
 def add_songs_from_csv(file_path, username):
     invalid_rows = 0
@@ -330,26 +348,6 @@ def list_and_add_songs():
     #response_data = {'relevant_songs': relevant_songs, 'user_permission': user.permission
     return jsonify(response_data), 200
 
-def list_most_relevant_songs(track_name, performer, album):
-    # Use Spotify API to get the most relevant 5 songs
-    myclient = Client(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)
-    search_result = myclient.search(track_name + " " + performer + " " + album)
-    tracks = search_result.get_tracks()
-
-    if tracks:
-        relevant_songs = [
-            {
-                "track_name": track.name,
-                "performer": track.artists[0].name,
-                "album": track.album.name,             
-            } for track in tracks[:5]
-        ]
-        return relevant_songs
-
-    # If no tracks found, return an empty list
-    return []
-
-'''
 # Route for adding the selected song
 @app.route('/add_selected_song', methods=['POST'])
 def add_selected_song():
@@ -394,7 +392,26 @@ def add_selected_song():
     db.session.commit()
 
     return jsonify({'message': 'Chosen song added successfully!'}), 201
-'''
+
+def list_most_relevant_songs(track_name, performer, album):
+    # Use Spotify API to get the most relevant 5 songs
+    myclient = Client(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)
+    search_result = myclient.search(track_name + " " + performer + " " + album)
+    tracks = search_result.get_tracks()
+
+    if tracks:
+        relevant_songs = [
+            {
+                "track_name": track.name,
+                "performer": track.artists[0].name,
+                "album": track.album.name,
+                "preview_url": track.preview_url,
+            } for track in tracks[:5]
+        ]
+        return relevant_songs
+
+    # If no tracks found, return an empty list
+    return []
 
 @app.route('/songs/unrated', methods=['GET'])
 def get_unrated_songs():
