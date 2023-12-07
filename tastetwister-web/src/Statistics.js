@@ -16,17 +16,21 @@ const StatsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('songs');
   const [data, setData] = useState({
     songs: [],
-    artists: [],
-    albums: [],
+    performer: [],
+    album: [],
   });
   const [ratingData, setRatingData] = useState([]);
   const username = localStorage.getItem('username');
+  
   const fetchChartData = async () => {
+    
+
     try {
-      const response = await fetch(`http://127.0.0.1:5000/stats/mean/all-time`, {
+      
+      const response = await fetch(`http://127.0.0.1:5000/stats/mean/all-time?username=${username}`, {
         method: 'GET',
       });
-
+    
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
@@ -43,10 +47,23 @@ const StatsPage = () => {
     } catch (error) {
       console.error('Error fetching data:', error.message);
     }
+  
+  
   };
   useEffect(() => {
     // Fetch data from the backend when the component mounts
-    fetchData();
+    if (selectedTab != 'chart'){
+      fetchData();
+    }
+    
+  }, [selectedTab, selectedCategory]);
+
+  useEffect(() => {
+    // Fetch data from the backend when the component mounts
+    if (selectedTab === 'chart'){
+      fetchChartData();
+    }
+    
   }, [selectedTab, selectedCategory]);
 
   const fetchData = async () => {
@@ -63,8 +80,8 @@ const StatsPage = () => {
 
       setData({
         songs: result.top_songs || [],
-        artists: result.top_performers || [],
-        albums: result.top_albums || [],
+        performer: result.top_performers || [],
+        album: result.top_albums || [],
       });
     } catch (error) {
       console.error('Error fetching data:', error.message);
@@ -134,8 +151,8 @@ const StatsPage = () => {
             className="select-dropdown"
           >
             <option value="songs">Songs</option>
-            <option value="artists">Artists</option>
-            <option value="albums">Albums</option>
+            <option value="performer">Artists</option>
+            <option value="album">Albums</option>
           </select>
         </div>
 
