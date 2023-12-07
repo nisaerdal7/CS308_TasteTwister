@@ -6,6 +6,7 @@ import json
 from werkzeug.utils import secure_filename
 from sqlalchemy import MetaData, Table, func, extract
 from sqlalchemy import and_
+from sqlalchemy.exc import SQLAlchemyError
 from flask import Response, stream_with_context
 from io import StringIO
 from flask_bcrypt import Bcrypt
@@ -39,6 +40,14 @@ friendships = db.Table('friendships',
     db.Column('user2', db.String(255), db.ForeignKey('users.username'), primary_key=True)
 )
 
+blocked_users = db.Table('blocked_users',
+    db.Column('blocker', db.String(255), db.ForeignKey('users.username'), primary_key=True),
+    db.Column('blocked', db.String(255), db.ForeignKey('users.username'), primary_key=True)
+)
+
+
+
+
 class FriendRequest(db.Model):
     __tablename__ = 'friend_requests'
 
@@ -70,6 +79,15 @@ class User(db.Model):
                                     backref='sender_user', lazy='dynamic')
     received_requests = db.relationship('FriendRequest', foreign_keys=[FriendRequest.receiver],
                                         backref='receiver_user', lazy='dynamic')
+    
+    # Relationship for blocked users
+    blocked = db.relationship('User', 
+                            secondary=blocked_users,
+                            primaryjoin=(blocked_users.c.blocker == username),
+                            secondaryjoin=(blocked_users.c.blocked == username),
+                            backref=db.backref('blocked_by', lazy='dynamic'),
+                            lazy='dynamic')
+
 
 class Song(db.Model):
     __tablename__ = 'songs'
@@ -928,8 +946,8 @@ def get_filtered_songs_stats(query, timeframe, filter_by=None, filter_value=None
                         extract('month', Song.updated_at).label('month'),
                         extract('year', Song.updated_at).label('year'),
                         func.avg(Song.rating).label('avg_rating'))
-                     .group_by('year', 'month', 'day')
-                     .order_by('year', 'month', 'day'))
+                    .group_by('year', 'month', 'day')
+                    .order_by('year', 'month', 'day'))
 
     daily_avg_ratings = []
     for row in grouped_query.all():
@@ -964,6 +982,61 @@ if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
     app.run(debug=True)
+
+
+@app.route('/block_friend', methods=['POST'])
+def block_friend():
+    data = request.json
+    blocker_username = data.get('blocker')
+    blocked_username = data.get('blocked')
+
+    try:
+        blocker = User.query.get(blocker_username)
+        blocked = User.query.get(blocked_username)
+
+        if not blocker or not blocked:
+            return jsonify({"message": "User not found"}), 404
+
+        # Check if they are already blocked
+        if blocked in blocker.blocked:
+            return jsonify({"message": "User already blocked"}), 400
+
+        # Add to blocked list
+        blocker.blocked.append(blocked)
+        db.session.commit()
+
+        return jsonify({"message": f"{blocked_username} blocked"}), 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/unblock_friend', methods=['POST'])
+def unblock_friend():
+    data = request.json
+    blocker_username = data.get('blocker')
+    blocked_username = data.get('blocked')
+
+    try:
+        blocker = User.query.get(blocker_username)
+        blocked = User.query.get(blocked_username)
+
+        if not blocker or not blocked:
+            return jsonify({"message": "User not found"}), 404
+
+        # Check if they are blocked
+        if blocked not in blocker.blocked:
+            return jsonify({"message": "User not blocked"}), 400
+
+        # Remove from blocked list
+        blocker.blocked.remove(blocked)
+        db.session.commit()
+
+        return jsonify({"message": f"{blocked_username} unblocked"}), 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 # This section will create all tables in the database if they don't exist.
 with app.app_context():
