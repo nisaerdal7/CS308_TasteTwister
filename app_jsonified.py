@@ -96,7 +96,7 @@ class Song(db.Model):
     track_name = db.Column(db.String(255), nullable=False)
     performer = db.Column(db.String(255), nullable=False)
     album = db.Column(db.String(255), nullable=False)
-    rating = db.Column(db.Integer, nullable=False)
+    rating = db.Column(db.Integer, nullable=True)
     username = db.Column(db.String(255), db.ForeignKey('users.username'), nullable=False)
     permission = db.Column(db.Boolean, nullable=True)  # not planning to use null but just in case
     
