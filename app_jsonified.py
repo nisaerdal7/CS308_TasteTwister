@@ -926,7 +926,7 @@ def user_stats(username):
     }), 200
 
 
-def get_filtered_songs_stats(query, timeframe, filter_by=None, filter_value=None):
+def get_filtered_songs_stats(query, timeframe, username, filter_by=None, filter_value=None):
     # Filter by timeframe
     if timeframe == 'last_24_hours':
         time_threshold = datetime.now() - timedelta(hours=24)
@@ -944,6 +944,9 @@ def get_filtered_songs_stats(query, timeframe, filter_by=None, filter_value=None
             query = query.filter(Song.album == filter_value)
         elif filter_by == 'performer':
             query = query.filter(Song.performer == filter_value)
+    
+    # Filter by username
+    query = query.filter(Song.username == username)
 
     # Group by day and calculate average rating per day
     grouped_query = (query.with_entities(
@@ -970,11 +973,12 @@ def get_filtered_songs_stats(query, timeframe, filter_by=None, filter_value=None
 @app.route('/stats/mean/last-24-hours', methods=['GET'])
 def mean_stats():
     timeframe = request.path.split('/')[3].replace('-', '_')
+    username = request.args.get('username')  # To get the username parameter
     filter_by = request.args.get('filter_by')  # 'album' or 'performer'
     filter_value = request.args.get('filter_value')  # Name of the album or performer
 
     query = Song.query
-    mean_rating, daily_avg_ratings = get_filtered_songs_stats(query, timeframe, filter_by, filter_value)
+    mean_rating, daily_avg_ratings = get_filtered_songs_stats(query, timeframe, username, filter_by, filter_value)
 
     daily_ratings_format = {f't{i+1}': rating for i, (_, rating) in enumerate(daily_avg_ratings)}
 
