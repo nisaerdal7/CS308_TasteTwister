@@ -937,6 +937,7 @@ def get_top_albums_or_performers(query, attribute):
 @app.route('/stats/last-24-hours/<username>', methods=['GET'])
 def user_stats(username):
     user = User.query.filter_by(username=username).first()
+    print(username, user)
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
@@ -952,11 +953,11 @@ def user_stats(username):
 
     # Top 10 albums
     top_albums = get_top_albums_or_performers(songs_query, Song.album)
-    top_albums_data = [{'album': album[0], 'average_rating': album[1]} for album in top_albums]
+    top_albums_data = [{'album': album[0], 'average_rating': int(album[1])} for album in top_albums]
 
     # Top 10 performers
     top_performers = get_top_albums_or_performers(songs_query, Song.performer)
-    top_performers_data = [{'performer': performer[0], 'average_rating': performer[1]} for performer in top_performers]
+    top_performers_data = [{'performer': performer[0], 'average_rating': int(performer[1])} for performer in top_performers]
 
     return jsonify({
         'top_songs': top_songs_data,

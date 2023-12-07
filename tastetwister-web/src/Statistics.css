@@ -1,63 +1,68 @@
 /* styles.css */
 
 .stats-container {
-  justify-content: center;
-  align-items: center;
-  text-align: center; 
-  }
-  
-  .grid-container {
-    width: 900px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    margin: 0 auto;
-    border-radius: 8px;
-    max-height: 500px;
-    overflow-y: auto;
-    background-color: rgba(0, 0, 0, 0.4);
-  }
-  
-  /* Dropdown styles (customize as needed) */
-  .select-dropdown {
-    margin-bottom: 10px;
-    width: 180px;
-    padding: 8px;
-    background-color: rgba(255, 255, 255, 0.825);
-  }
-  
-  /* Tabs styles */
-  .stats-tabs-container {
-    display: flex;
-    margin-bottom: 10px;
-  }
-  
-  .stats-tab {
-    cursor: pointer;
-    padding: 8px;
-    margin-right: 10px;
-    border-radius: 4px;
-    user-select: none;
-  }
-  
-  .stats-tab.active {
-    background-color: rgba(255, 255, 255, 0.5);
-    color: #000;
-  }
-  
-  /* Table styles (customize as needed) */
-  .data-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-  }
-  
-  th,
-  td {
-    padding: 10px;
-    border: none;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
+  text-align: center;
+}
+
+.grid-container {
+  width: 900px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  border-radius: 8px;
+  max-height: 600px;
+  overflow-y: auto;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Dropdown styles (customize as needed) */
+.select-dropdown {
+  margin-bottom: 10px;
+  width: 180px;
+  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.825);
+}
+
+/* Tabs styles */
+.stats-tabs-container {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.stats-tab {
+  cursor: pointer;
+  padding: 8px;
+  margin-right: 10px;
+  border-radius: 4px;
+  user-select: none;
+}
+
+.stats-tab.active {
+  background-color: rgba(255, 255, 255, 0.5);
+  color: #000;
+}
+
+.stats-container .data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.stats-container th,
+.stats-container td {
+  padding: 5px; /* Reduced padding */
+  border: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px; /* Adjusted font size */
+  max-width: 150px; /* Set a maximum width for cells */
+}
+/* Add this to styles.css */
+.stats-flex-container {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
