@@ -1,0 +1,12 @@
+username, password, token, permission
+"betul","$2b$12$C5a5esXlpZJvNePWUspkt.afpgdI6bexQT94xuFkF52ABq28auTBW","46e67e50e3a8eef8d54364be02d753e7",1
+"burak1","$2b$12$xrqo1QZSgkHRir7szGJ6BewL/V2AUuzK33sYcEBDpQ8m3eq0S4OQu","0c8a219c116d9906c5aec5bc73a4f249",1
+"burak2","$2b$12$3CgOmztm0PMgHbeZsy4xPO0azB29mUKIrXAzQQ6No8MiaoGkTss8e","1d2d147dd2b6560d5dabf6ba1d06fbdd",1
+"burak3","$2b$12$n8oAgum3X8wW42DfVkV0JOSg9H4ut20LXwnS.FeOIbLOjPVPmjg8q","ec234213a30882d5468c79cc807ff742",1
+"burak4","$2b$12$fuL4PnzGsvRBpYwPNel4GeTsDeBl.4UnncJb8WNVIQkSpWctda3Cq","c401f919e70ee862378a2c10b9306ce4",1
+"hurrem","$2b$12$r5g/BDsi9ulxZxVE/k8nuubq1e9ofBpxhTz9042KqQDeDgPn.mmwG","fbf70a780824f7667b6594515c17ac63",0
+"nisa","$2b$12$Hz7hi.NGeeyJEBJn/KDFheiraoc1DAbmUujipg.9aD3kBvUqrn3fS","aefd06c3cf55cfd2b36ba5e062417e74",1
+"stella","$2b$12$5Uto25ZVA2UYPGfmSmbOAObY6HT/0l8lZqriWqpWJR51s73mNk7Tu","b38d34ace941c33334774ea866da4c97",0
+"test","$2b$12$ndANhcyjADb9SbzjXriHre2xV10EkAZch8SpQxiQ0TPyfP1mbQyqi","2ee171182030d2a93ac9e15168d929d3",0
+"testuser","testpassword","sample_token",1
+"yunus","$2b$12$U/ZGpKP6vRZoYRzVasU4Ru2PnWjbf6vLO6BhLqMGjcMsDH9TQ8jNK","f763d3b3caebd53142ce9b03e87b43e1",1

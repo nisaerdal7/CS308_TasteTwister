@@ -1,0 +1,13 @@
+id, sender, reciever, status, sent_at, responded_at
+1,"stella","hurrem","accepted","2023-12-05 17:37:57","2023-12-05 17:38:04"
+2,"burak1","burak2","denied","2023-12-05 22:28:03","2023-12-05 22:30:08"
+3,"betul","yunus","pending","2023-12-06 19:58:46","N
+4,"burak1","burak2","denied","2023-12-06 21:24:13","2023-12-06 21:24:43"
+5,"burak1","burak2","accepted","2023-12-06 21:29:19","2023-12-06 21:29:47"
+6,"burak3","burak1","accepted","2023-12-07 11:43:40","2023-12-07 12:00:31"
+7,"hurrem","yunus","accepted","2023-12-07 11:44:09","2023-12-07 11:45:26"
+8,"burak1","stella","pending","2023-12-07 12:00:57","N
+9,"nisa","yunus","pending","2023-12-07 18:14:30","N
+10,"nisa","stella","pending","2023-12-07 18:14:36","N
+11,"nisa","betul","pending","2023-12-07 18:14:44","N
+12,"nisa","hurrem","pending","2023-12-07 18:14:52","N
