@@ -4,7 +4,7 @@ import os
 import csv
 import json
 from werkzeug.utils import secure_filename
-from sqlalchemy import MetaData, Table, func, extract
+from sqlalchemy import MetaData, Table
 from sqlalchemy import and_
 from flask import Response, stream_with_context
 from io import StringIO
@@ -141,9 +141,7 @@ def add_songs_from_csv(file_path, username):
                 album = row['album']
                 print(row['performer'])
                 if (row['rating'] == None):
-                    
                     rating = row['rating']
-                    print("SELAMMMMMMMMMM", rating)
                 else:
                     rating = int(row['rating'])
                 
@@ -324,96 +322,6 @@ def songs():
     # If method is neither GET nor POST
     return jsonify({'error': 'Invalid request method'}), 405
 
-# New route for listing songs and adding the selected song
-@app.route('/list_and_add_songs', methods=['POST'])
-def list_and_add_songs():
-    token = request.headers.get('Authorization')
-    if not token:
-        return jsonify({'error': 'Authorization token is required'}), 401
-
-    user = User.query.filter_by(token=token).first()
-    if not user:
-        return jsonify({'error': 'Invalid token'}), 401
-
-    data = request.get_json()
-    user_track_name = data.get('track_name')
-    user_performer = data.get('performer')
-    user_album = data.get('album')
-
-    # Call the function to list the most relevant 5 songs based on user input
-    relevant_songs = list_most_relevant_songs(user_track_name, user_performer, user_album)
-
-    if not relevant_songs:
-        return jsonify({'message': 'No relevant songs found'}), 200
-
-    # Include user permission in the response if needed
-    response_data = {'relevant_songs': relevant_songs, 'user_permission': user.permission}
-    return jsonify(response_data), 200
-
-# New route for adding the selected song
-@app.route('/add_selected_song', methods=['POST'])
-def add_selected_song():
-    token = request.headers.get('Authorization')
-    if not token:
-        return jsonify({'error': 'Authorization token is required'}), 401
-
-    user = User.query.filter_by(token=token).first()
-    if not user:
-        return jsonify({'error': 'Invalid token'}), 401
-
-    data = request.get_json()
-    chosen_song_data = data.get('chosen_song')
-    if not chosen_song_data:
-        return jsonify({'error': 'Chosen song data is required'}), 400
-
-    # Extract relevant information from the chosen song data
-    chosen_track_name = chosen_song_data.get('track_name')
-    chosen_performer = chosen_song_data.get('performer')
-    chosen_album = chosen_song_data.get('album')
-    rating = chosen_song_data.get('rating')
-
-    # Check if the song already exists in the database for this user
-    existing_song = Song.query.filter_by(track_name=chosen_track_name, performer=chosen_performer, album=chosen_album, username=user.username).first()
-
-    if existing_song:
-        # Update the existing song with a new rating
-        existing_song.rating = rating
-    else:
-        # Add a new song with Spotify data and user rating
-        new_song = Song(
-            track_name=chosen_track_name,
-            performer=chosen_performer,
-            album=chosen_album,
-            rating=rating,
-            username=user.username,
-            permission=user.permission
-        )
-        db.session.add(new_song)
-
-    # Commit changes to the database
-    db.session.commit()
-
-    return jsonify({'message': 'Chosen song added successfully!'}), 201
-
-def list_most_relevant_songs(track_name, performer, album):
-    # Use Spotify API to get the most relevant 5 songs
-    myclient = Client(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)
-    search_result = myclient.search(track_name + " " + performer + " " + album)
-    tracks = search_result.get_tracks()
-
-    if tracks:
-        relevant_songs = [
-            {
-                "track_name": track.name,
-                "performer": track.artists[0].name,
-                "album": track.album.name,
-                "preview_url": track.preview_url,
-            } for track in tracks[:5]
-        ]
-        return relevant_songs
-
-    # If no tracks found, return an empty list
-    return []
 
 @app.route('/songs/unrated', methods=['GET'])
 def get_unrated_songs():
@@ -921,110 +829,6 @@ def recommend_playlist_from_all_friends():
 
     return jsonify(playlist_json), 200
 
-def filter_songs_by_timeframe(query, timeframe):
-    if timeframe == 'last_24_hours':
-        query = query.filter(Song.updated_at >= datetime.now() - timedelta(hours=24))
-    elif timeframe == 'last_7_days':
-        query = query.filter(Song.updated_at >= datetime.now() - timedelta(days=7))
-    return query
-
-def get_top_albums_or_performers(query, attribute):
-    return (query.with_entities(attribute, func.avg(Song.rating).label('average_rating'))
-            .group_by(attribute)
-            .order_by(func.avg(Song.rating).desc())
-            .limit(10)
-            .all())
-
-@app.route('/stats/all-time/<username>', methods=['GET'])
-@app.route('/stats/last-7-days/<username>', methods=['GET'])
-@app.route('/stats/last-24-hours/<username>', methods=['GET'])
-def user_stats(username):
-    user = User.query.filter_by(username=username).first()
-    print(username, user)
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-
-    timeframe = request.path.split('/')[2].replace('-', '_')
-    songs_query = Song.query.filter_by(username=username)
-    songs_query = filter_songs_by_timeframe(songs_query, timeframe)
-
-    # Top 10 songs
-    top_songs = (songs_query.order_by(Song.rating.desc())
-                 .limit(10)
-                 .all())
-    top_songs_data = [{'id': song.id, 'track_name': song.track_name, 'rating': song.rating} for song in top_songs]
-
-    # Top 10 albums
-    top_albums = get_top_albums_or_performers(songs_query, Song.album)
-    top_albums_data = [{'album': album[0], 'average_rating': int(album[1])} for album in top_albums]
-
-    # Top 10 performers
-    top_performers = get_top_albums_or_performers(songs_query, Song.performer)
-    top_performers_data = [{'performer': performer[0], 'average_rating': int(performer[1])} for performer in top_performers]
-
-    return jsonify({
-        'top_songs': top_songs_data,
-        'top_albums': top_albums_data,
-        'top_performers': top_performers_data
-    }), 200
-
-
-def get_filtered_songs_stats(query, timeframe, filter_by=None, filter_value=None):
-    # Filter by timeframe
-    if timeframe == 'last_24_hours':
-        time_threshold = datetime.now() - timedelta(hours=24)
-    elif timeframe == 'last_7_days':
-        time_threshold = datetime.now() - timedelta(days=7)
-    else:
-        time_threshold = None
-
-    if time_threshold:
-        query = query.filter(Song.updated_at >= time_threshold)
-
-    # Additional filtering by album or performer
-    if filter_by and filter_value:
-        if filter_by == 'album':
-            query = query.filter(Song.album == filter_value)
-        elif filter_by == 'performer':
-            query = query.filter(Song.performer == filter_value)
-
-    # Group by day and calculate average rating per day
-    grouped_query = (query.with_entities(
-                        extract('day', Song.updated_at).label('day'),
-                        extract('month', Song.updated_at).label('month'),
-                        extract('year', Song.updated_at).label('year'),
-                        func.avg(Song.rating).label('avg_rating'))
-                     .group_by('year', 'month', 'day')
-                     .order_by('year', 'month', 'day'))
-
-    daily_avg_ratings = []
-    for row in grouped_query.all():
-        day_str = f"{int(row.year)}-{int(row.month):02d}-{int(row.day):02d}"
-        daily_avg_ratings.append((day_str, float(row.avg_rating)))
-
-    # Overall mean rating for the timeframe
-    mean_rating = query.with_entities(func.avg(Song.rating)).scalar()
-
-    return mean_rating, daily_avg_ratings
-
-
-@app.route('/stats/mean/all-time', methods=['GET'])
-@app.route('/stats/mean/last-7-days', methods=['GET'])
-@app.route('/stats/mean/last-24-hours', methods=['GET'])
-def mean_stats():
-    timeframe = request.path.split('/')[3].replace('-', '_')
-    filter_by = request.args.get('filter_by')  # 'album' or 'performer'
-    filter_value = request.args.get('filter_value')  # Name of the album or performer
-
-    query = Song.query
-    mean_rating, daily_avg_ratings = get_filtered_songs_stats(query, timeframe, filter_by, filter_value)
-
-    daily_ratings_format = {f't{i+1}': rating for i, (_, rating) in enumerate(daily_avg_ratings)}
-
-    return jsonify({
-        'mean_rating': mean_rating,
-        'daily_average_ratings': daily_ratings_format
-    }), 200
 
 
 
