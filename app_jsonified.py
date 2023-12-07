@@ -6,6 +6,7 @@ import json
 from werkzeug.utils import secure_filename
 from sqlalchemy import MetaData, Table, func, extract
 from sqlalchemy import and_
+from sqlalchemy.sql import not_
 from sqlalchemy.exc import SQLAlchemyError
 from flask import Response, stream_with_context
 from io import StringIO
@@ -713,11 +714,13 @@ def recommend_playlist_all_users():
         Song.rating >= 4
     ).order_by(db.func.random()).limit(2).all()
 
-    # Fetch 8 songs from other users with rating >= 4
+    # Fetch 8 songs from other users with rating >= 4, excluding blocked users
+    blocked_users = [blocked_user.username for blocked_user in user.blocked_by]
     query = Song.query.filter(
         Song.username != username, 
         Song.permission.is_(True), 
-        Song.rating >= 4
+        Song.rating >= 4,
+        not_(Song.username.in_(blocked_users))
     )
     if timeframe == 'recent':
         recent_time = datetime.now() - timedelta(hours=24)
@@ -765,6 +768,10 @@ def recommend_playlist_friends_duo():
     friend = User.query.filter_by(username=friend_username).first()
     if not friend or friend not in user.friends:
         return jsonify({'error': 'Friend not found or users are not friends'}), 404
+
+    # Check if either user has blocked the other
+    if user in friend.blocked or friend in user.blocked:
+        return jsonify({'error': 'Cannot create playlist as one user has blocked the other'}), 403
 
     # Extract timeframe from query parameters
     timeframe = request.args.get('timeframe', 'all-time')
@@ -823,6 +830,10 @@ def recommend_playlist_from_all_friends():
     # Extract timeframe from query parameters
     timeframe = request.args.get('timeframe', 'all-time')
 
+    # Fetch songs from friends, excluding those who have blocked the user
+    blocked_users = [blocked_user.username for blocked_user in user.blocked_by]
+    friend_usernames = [friend.username for friend in user.friends if friend.username not in blocked_users]
+
     # Define a base query for fetching songs
     base_query = lambda username: Song.query.filter(
         Song.username == username, 
@@ -833,21 +844,15 @@ def recommend_playlist_from_all_friends():
     if timeframe == 'recent':
         recent_time = datetime.now() - timedelta(hours=24)
         user_songs_query = base_query(user.username).filter(Song.updated_at >= recent_time)
-        friend_songs_query = Song.query.join(
-            User, User.username == Song.username
-        ).filter(
-            User.username != user.username, 
-            User.username.in_([friend.username for friend in user.friends]), 
+        friend_songs_query = Song.query.filter(
+            Song.username.in_(friend_usernames),
             Song.rating >= 4,
             Song.updated_at >= recent_time
         )
     else:
         user_songs_query = base_query(user.username)
-        friend_songs_query = Song.query.join(
-            User, User.username == Song.username
-        ).filter(
-            User.username != user.username, 
-            User.username.in_([friend.username for friend in user.friends]), 
+        friend_songs_query = Song.query.filter(
+            Song.username.in_(friend_usernames),
             Song.rating >= 4
         )
 
