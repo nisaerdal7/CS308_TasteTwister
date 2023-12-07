@@ -33,7 +33,7 @@ function TasteTwist() {
   const SaveSong = (song) => {
     const storedToken = localStorage.getItem('token');
     console.log(storedToken);
-
+    console.log(song);
     fetch('http://127.0.0.1:5000/songs', {
     method: 'POST',
     headers: {

@@ -36,11 +36,12 @@
   margin-right: 10px;
   border-radius: 4px;
   user-select: none;
+  color:rgb(201, 199, 199);
 }
 
 .stats-tab.active {
-  background-color: rgba(255, 255, 255, 0.5);
-  color: #000;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: rgb(236, 232, 232);
 }
 
 .stats-container .data-table {
@@ -58,6 +59,7 @@
   text-overflow: ellipsis;
   font-size: 14px; /* Adjusted font size */
   max-width: 150px; /* Set a maximum width for cells */
+  color:rgb(160, 160, 160);
 }
 /* Add this to styles.css */
 .stats-flex-container {
@@ -65,4 +67,10 @@
   justify-content: space-between;
   margin-bottom: 8px;
 }
-
+.dark-grid-container {
+  background-color: rgba(0, 0, 0, 0.6);
+  padding: 20px;
+  border-radius: 8px;
+  max-height: 500px;
+  overflow-y: auto;
+}
