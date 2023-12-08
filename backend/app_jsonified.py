@@ -407,7 +407,6 @@ def list_most_relevant_songs(track_name, performer, album):
                 "track_name": track.name,
                 "performer": track.artists[0].name,
                 "album": track.album.name,
-                "preview_url": track.preview_url,
             } for track in tracks[:5]
         ]
         return relevant_songs
@@ -1036,11 +1035,6 @@ if __name__ == '__main__':
     app.run(debug=True)
 
 
-
-if __name__ == '__main__':
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-    app.run(debug=True)
 
 # This section will create all tables in the database if they don't exist.
 with app.app_context():

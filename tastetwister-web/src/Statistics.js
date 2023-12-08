@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import Sidebar from './Sidebar';
 import RatingChart from './RatingChart';
 import './Statistics.css';
 
-const mockData = [
-  { date: '2023-12-01', rating: 4 },
-  { date: '2023-12-02', rating: 3.5 },
-  { date: '2023-12-03', rating: 4.2 },
-  { date: '2023-12-04', rating: 3.8 },
-  { date: '2023-12-05', rating: 4.5 },
-];
 
 const StatsPage = () => {
   const [selectedTab, setSelectedTab] = useState('last-24-hours');
@@ -110,7 +102,7 @@ const StatsPage = () => {
   return (
     <div className="stats-container">
       {/* Background Image */}
-      <Sidebar />
+      
 
       {/* Black Transparent Grid */}
       <div className="grid-container">
@@ -176,6 +168,7 @@ const StatsPage = () => {
           </table>
         )}
       </div>
+      
     </div>
   );
 };

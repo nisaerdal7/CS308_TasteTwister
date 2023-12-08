@@ -6,7 +6,7 @@ import reportWebVitals from './reportWebVitals';
 import Home from './Home';
 import Profile from './Profile';
 import RateItPage from './RateItPage';
-import StatsPage from './Statistics';
+import StatisticsPage from './StatisticsPage';
 import {BrowserRouter, Route, Routes } from 'react-router-dom';
 import TasteTwistPage from './TasteTwistPage';
 
@@ -22,7 +22,7 @@ ReactDOM.render(
         <Route exact path="/" element={<LoginForm />} />
         <Route exact path="/profile" element={<Profile />} />
         <Route exact path="/tasteit" element={<TasteTwistPage />} />
-        <Route exact path="/statistics" element={<StatsPage />} />
+        <Route exact path="/statistics" element={<StatisticsPage />} />
         </Routes>
     
     </div>
