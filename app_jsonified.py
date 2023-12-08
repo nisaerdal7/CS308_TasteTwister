@@ -704,35 +704,25 @@ def recommend_playlist_all_users():
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
 
-    # Extract additional query parameters
-    username = user.username  # Assuming the username is derived from the authenticated user
-    timeframe = request.args.get('timeframe', 'all-time')
-
-    # Fetch 2 songs from the user with rating >= 4
-    user_songs = Song.query.filter(
-        Song.username == username, 
-        Song.rating >= 4
-    ).order_by(db.func.random()).limit(2).all()
-
-    # Fetch 8 songs from other users with rating >= 4, excluding blocked users
+    # Fetch songs from other users, excluding user's songs and blocked users
+    user_songs = [(song.track_name, song.album) for song in user.songs]
     blocked_users = [blocked_user.username for blocked_user in user.blocked_by]
     query = Song.query.filter(
-        Song.username != username, 
-        Song.permission.is_(True), 
+        Song.username != user.username,
+        Song.permission.is_(True),
         Song.rating >= 4,
+        db.and_(Song.track_name, Song.album).notin_(user_songs),
         not_(Song.username.in_(blocked_users))
     )
+
+    # Extract timeframe from query parameters
+    timeframe = request.args.get('timeframe', 'all-time')
     if timeframe == 'recent':
         recent_time = datetime.now() - timedelta(hours=24)
         query = query.filter(Song.updated_at >= recent_time)
 
-    other_songs = query.order_by(db.func.random()).limit(8).all()
-
-    # Combine songs to create the playlist
-    playlist = user_songs + other_songs
-
-    # Randomize the order of the songs in the playlist
-    random.shuffle(playlist)
+    # Fetch 10 songs with random order
+    other_songs = query.order_by(db.func.random()).limit(10).all()
 
     # Convert songs to JSON format
     playlist_json = [{
@@ -744,9 +734,11 @@ def recommend_playlist_all_users():
         "username": song.username,
         "permission": song.permission,
         "updated_at": song.updated_at
-    } for song in playlist]
+    } for song in other_songs]
 
     return jsonify(playlist_json), 200
+
+
 
 @app.route('/recommend_playlist_friends_duo', methods=['GET'])
 def recommend_playlist_friends_duo():
@@ -777,10 +769,11 @@ def recommend_playlist_friends_duo():
     timeframe = request.args.get('timeframe', 'all-time')
 
     # Define a base query for fetching songs
-    base_query = lambda username: Song.query.filter(
-        Song.username == username, 
-        Song.rating >= 4
-    )
+    def base_query(username):
+        return Song.query.filter(
+            Song.username == username, 
+            Song.rating >= 4
+        )
 
     # Apply timeframe filter if needed
     if timeframe == 'recent':
@@ -795,9 +788,27 @@ def recommend_playlist_friends_duo():
     user_songs = user_songs_query.order_by(db.func.random()).limit(5).all()
     friend_songs = friend_songs_query.order_by(db.func.random()).limit(5).all()
 
-    # Combine and shuffle the playlist
-    playlist = user_songs + friend_songs
-    random.shuffle(playlist)
+    # Filter out duplicate songs
+    unique_songs = set()
+    combined_playlist = []
+
+    for song_list in [user_songs, friend_songs]:
+        for song in song_list:
+            song_identity = (song.track_name, song.album)
+            if song_identity not in unique_songs:
+                unique_songs.add(song_identity)
+                combined_playlist.append(song)
+            else:
+                # Fetch an additional unique song
+                additional_song = base_query(song.username).filter(
+                    db.and_(Song.track_name, Song.album).notin_(unique_songs)
+                ).order_by(db.func.random()).first()
+                if additional_song:
+                    unique_songs.add((additional_song.track_name, additional_song.album))
+                    combined_playlist.append(additional_song)
+
+    # Shuffle the playlist
+    random.shuffle(combined_playlist)
 
     # Convert to JSON
     playlist_json = [{
@@ -809,9 +820,10 @@ def recommend_playlist_friends_duo():
         "username": song.username,
         "permission": song.permission,
         "updated_at": song.updated_at
-    } for song in playlist]
+    } for song in combined_playlist]
 
     return jsonify(playlist_json), 200
+
 
 
 
@@ -827,42 +839,25 @@ def recommend_playlist_from_all_friends():
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
 
-    # Extract timeframe from query parameters
-    timeframe = request.args.get('timeframe', 'all-time')
-
-    # Fetch songs from friends, excluding those who have blocked the user
+    # Fetch songs from friends, excluding user's songs and blocked users
+    user_songs = [(song.track_name, song.album) for song in user.songs]
     blocked_users = [blocked_user.username for blocked_user in user.blocked_by]
     friend_usernames = [friend.username for friend in user.friends if friend.username not in blocked_users]
-
-    # Define a base query for fetching songs
-    base_query = lambda username: Song.query.filter(
-        Song.username == username, 
-        Song.rating >= 4
+    
+    query = Song.query.filter(
+        Song.username.in_(friend_usernames),
+        Song.rating >= 4,
+        db.and_(Song.track_name, Song.album).notin_(user_songs)
     )
 
-    # Apply timeframe filter if needed
+    # Extract timeframe from query parameters
+    timeframe = request.args.get('timeframe', 'all-time')
     if timeframe == 'recent':
         recent_time = datetime.now() - timedelta(hours=24)
-        user_songs_query = base_query(user.username).filter(Song.updated_at >= recent_time)
-        friend_songs_query = Song.query.filter(
-            Song.username.in_(friend_usernames),
-            Song.rating >= 4,
-            Song.updated_at >= recent_time
-        )
-    else:
-        user_songs_query = base_query(user.username)
-        friend_songs_query = Song.query.filter(
-            Song.username.in_(friend_usernames),
-            Song.rating >= 4
-        )
+        query = query.filter(Song.updated_at >= recent_time)
 
-    # Fetch songs with random order and limit
-    user_songs = user_songs_query.order_by(db.func.random()).limit(2).all()
-    friend_songs = friend_songs_query.order_by(db.func.random()).limit(8).all()
-
-    # Combine and shuffle the playlist
-    playlist = user_songs + friend_songs
-    random.shuffle(playlist)
+    # Fetch 10 songs with random order
+    friend_songs = query.order_by(db.func.random()).limit(10).all()
 
     # Convert to JSON
     playlist_json = [{
@@ -874,9 +869,11 @@ def recommend_playlist_from_all_friends():
         "username": song.username,
         "permission": song.permission,
         "updated_at": song.updated_at
-    } for song in playlist]
+    } for song in friend_songs]
 
     return jsonify(playlist_json), 200
+
+
 
 def filter_songs_by_timeframe(query, timeframe):
     if timeframe == 'last_24_hours':
