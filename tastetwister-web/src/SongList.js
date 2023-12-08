@@ -55,6 +55,7 @@ function SongList() {
   };
 
   const showSpotifyPopup = () => {
+    setRelevantSongs([]); // Clear relevant songs when the popup is opened
     resetSongEntry();
     setPopupVisible(false); // Close the current popup
     setSpotifyPopupVisible(true);
@@ -287,7 +288,7 @@ function SongList() {
       ...songEntry,
     };
   
-    console.log("User's Song Entry:", userSong);
+    //console.log("User's Song Entry:", userSong);
     
     const storedToken = localStorage.getItem('token');
     console.log(storedToken);
@@ -313,6 +314,7 @@ function SongList() {
         });
         setManualPopupVisible(false);
         setPopupVisible(false);
+        setSpotifyPopupVisible(false);
         // Fetch the updated list of songs
         fetchSongs()
         .then((updatedData) => {
@@ -359,7 +361,7 @@ function SongList() {
         if (data.relevant_songs) {
           setRelevantSongs(data.relevant_songs);
         } else {
-          console.log("No relevant songs found");
+          alert("No relevant songs found");
         }
       })
       .catch((error) => {
@@ -416,7 +418,34 @@ function SongList() {
       });
   };
   
+  const [showAddRatingPopup, setShowAddRatingPopup] = useState(false);
+  const [selectedAddRating, setSelectedAddRating] = useState('');
 
+  const handleSelectSong = (selectedSong) => {
+    // Update the songEntry state with the selected song
+    setSongEntry({
+      track_name: selectedSong.track_name,
+      performer: selectedSong.performer,
+      album: selectedSong.album,
+      rating: selectedAddRating,
+    });
+    // Show the rating popup
+    setShowAddRatingPopup(true);
+  };
+
+  // Add a function to handle the submission of the song and rating
+  const handleSongAndRatingSubmit = () => {
+
+    songEntry.rating = selectedAddRating;
+    // Submit the song entry with the rating
+    submitSong();
+
+    // Close the rating popup
+    setShowAddRatingPopup(false);
+
+    // Optionally, you can reset the selected rating state
+    setSelectedAddRating('');
+  };
 
   const filteredSongs = songs.filter(
     (song) =>
@@ -600,7 +629,7 @@ function SongList() {
               <div className="relevant-songs-container">
                 <ul>
                   {relevantSongs.map((song, index) => (
-                    <li key={index}>
+                    <li key={index} onClick={() => handleSelectSong(song)}>
                       <div className="song-info">
                         <p className="song-title">{song.track_name}, {song.album}</p>
                         <p className="song-artist">{song.performer}</p>
@@ -610,6 +639,36 @@ function SongList() {
                 </ul>
               </div>
             )}
+      {showAddRatingPopup && (
+        // Render your rating popup here
+        // You can use the same popup logic as your Spotify popup
+        <div className="popup">
+          <button className="close-button" onClick={() => setShowAddRatingPopup(false)}>
+            X
+          </button>
+          <div className="rating-popup" style={{ background: 'black', color: 'gray', display: 'flex', flexDirection: 'column' }}>
+            {/* Your rating dropdown menu and UI here */}
+            <select
+              value={selectedAddRating}
+              onChange={(e) => setSelectedAddRating(e.target.value)}
+              style={{ background: 'black', color: 'rgb(160, 160, 160)' }}
+            >
+              <option value="">Select rating</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+            </select>
+            <button
+              onClick={handleSongAndRatingSubmit}
+              style={{ background: '#329374', color: '#fff' }}
+            >
+              Submit Rating
+            </button>
+          </div>
+        </div>
+      )}
 
           </div>
 
