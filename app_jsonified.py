@@ -947,17 +947,14 @@ def get_filtered_songs_stats(query, timeframe, username, filter_by=None, filter_
 
     # Group by day and calculate average rating per day
     grouped_query = (query.with_entities(
-                        extract('day', Song.updated_at).label('day'),
-                        extract('month', Song.updated_at).label('month'),
-                        extract('year', Song.updated_at).label('year'),
+                        func.date(Song.updated_at).label('date'),
                         func.avg(Song.rating).label('avg_rating'))
-                    .group_by('year', 'month', 'day')
-                    .order_by('year', 'month', 'day'))
+                    .group_by('date')
+                    .order_by('date'))
 
-    daily_avg_ratings = []
+    daily_avg_ratings = {}
     for row in grouped_query.all():
-        day_str = f"{int(row.year)}-{int(row.month):02d}-{int(row.day):02d}"
-        daily_avg_ratings.append((day_str, float(row.avg_rating)))
+        daily_avg_ratings[row.date] = float(row.avg_rating)
 
     # Overall mean rating for the timeframe
     mean_rating = query.with_entities(func.avg(Song.rating)).scalar()
@@ -977,11 +974,9 @@ def mean_stats():
     query = Song.query
     mean_rating, daily_avg_ratings = get_filtered_songs_stats(query, timeframe, username, filter_by, filter_value)
 
-    daily_ratings_format = {f't{i+1}': rating for i, (_, rating) in enumerate(daily_avg_ratings)}
-
     return jsonify({
         'mean_rating': mean_rating,
-        'daily_average_ratings': daily_ratings_format
+        'daily_average_ratings': daily_avg_ratings
     }), 200
 
 if __name__ == '__main__':
