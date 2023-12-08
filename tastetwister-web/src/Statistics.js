@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import RatingChart from './RatingChart';
 import './Statistics.css';
-
+import twitterIcon from './images/twitter-icon.webp';
 
 const StatsPage = () => {
   const [selectedTab, setSelectedTab] = useState('last-24-hours');
@@ -13,6 +13,18 @@ const StatsPage = () => {
   });
   const [ratingData, setRatingData] = useState([]);
   const username = localStorage.getItem('username');
+
+  const handleTwitterShare = () => {
+    const tweetText = `Here are my top ${selectedCategory} according to TasteTwister: ${getTopItemsText()}`;
+    const twitterShareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`;
+    window.open(twitterShareUrl, '_blank');
+  };
+
+  const getTopItemsText = () => {
+    const selectedData = data[selectedCategory] || [];
+    const itemsText = selectedData.map(item => item.track_name || item.performer || item.album).join(', ');
+    return itemsText;
+  };
   
   const fetchChartData = async () => {
     
@@ -168,7 +180,11 @@ const StatsPage = () => {
           </table>
         )}
       </div>
-      
+      {/* Share on Twitter button */}
+      <div className="twitter-share-button" onClick={handleTwitterShare}>
+      <img src={twitterIcon} alt="Twitter" className="twitter-icon" />
+        Share on Twitter
+      </div>
     </div>
   );
 };

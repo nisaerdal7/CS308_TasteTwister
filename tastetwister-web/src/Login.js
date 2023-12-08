@@ -45,7 +45,7 @@ function LoginForm() {
                 console.log('Successful login:', data.message);
             // Handle successful login
             } else {
-                console.log('Login failed:', data.message);
+                alert('Wrong credentials!');
                 // Handle login failure
             }
         })
@@ -82,7 +82,7 @@ function LoginForm() {
                 setIsSignUp(false);
                 // Handle successful registration
               } else {
-                console.log('Register failed:', data.message);
+                alert('Registration is not successful. Try again');
                 // Handle registration failure
               }
             })

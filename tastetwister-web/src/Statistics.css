@@ -2,6 +2,7 @@
 
 .stats-container {
   text-align: center;
+  align-items: center;
 }
 
 .grid-container {
@@ -74,3 +75,24 @@
   max-height: 500px;
   overflow-y: auto;
 }
+.twitter-share-button {
+  cursor: pointer;
+  width: 200px;
+  margin-left: 350px;
+  background-color: rgba(0, 0, 0, 0.6); /* Black transparent background */
+  color: #fff; /* White text color */
+  padding: 10px 15px;
+  border-radius: 5px;
+  margin-top: 10px; /* Adjust as needed */
+  transition: background-color 0.3s ease;
+}
+
+.twitter-share-button:hover {
+  background-color: rgba(0, 0, 0, 0.9); /* Darker background on hover */
+}
+.twitter-icon {
+  width: 20px; /* Adjust the size of the icon */
+  height: 20px; /* Adjust the height of the icon */
+  margin-right: 8px; /* Add spacing between icon and text */
+}
+
