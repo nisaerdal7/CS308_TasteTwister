@@ -13,6 +13,7 @@ function SongList() {
 
   const [isPopupVisible, setPopupVisible] = useState(false);
   const [isManualPopupVisible, setManualPopupVisible] = useState(false);
+  const [isSpotifyPopupVisible, setSpotifyPopupVisible] = useState(false);
   const [isEditPopupVisible, setEditPopupVisible] = useState(false);
   const [isExportPopupVisible, setExportPopupVisible] = useState(false);
   const [isDeletePopupVisible, setDeletePopupVisible] = useState(false);
@@ -24,9 +25,20 @@ function SongList() {
     rating: "",
   });
 
+  const resetSongEntry = () => {
+    setSongEntry({
+      track_name: '',
+      performer: '',
+      album: '',
+      rating: ''
+    });
+  };
+
   const showPopup = () => {
+    resetSongEntry();
     setPopupVisible(true);
     setManualPopupVisible(false); // Hide the manual popup
+    setSpotifyPopupVisible(false);
   };  
 
   const hidePopup = () => {
@@ -42,13 +54,24 @@ function SongList() {
     setEditPopupVisible(false);
   };
 
+  const showSpotifyPopup = () => {
+    resetSongEntry();
+    setPopupVisible(false); // Close the current popup
+    setSpotifyPopupVisible(true);
+  };
+
   const showManualPopup = () => {
+    resetSongEntry();
     setPopupVisible(false); // Close the current popup
     setManualPopupVisible(true);
   };
 
   const hideManualPopup = () => {
     setManualPopupVisible(false);
+  };
+
+  const hideSpotifyPopup = () => {
+    setSpotifyPopupVisible(false);
   };
 
   const handleDelete = (songId) =>{
@@ -252,7 +275,7 @@ function SongList() {
 
   const submitSong = () => {
     // Check if any of the fields are empty
-    if (!songEntry.track_name || !songEntry.performer || !songEntry.album || !songEntry.rating) {
+    if (!songEntry.track_name || !songEntry.performer || !songEntry.album) {
       // Display a warning message and return early
       alert("All fields are required for submit.");
     
@@ -303,7 +326,47 @@ function SongList() {
     });
 
   };
-
+  const [relevantSongs, setRelevantSongs] = useState([]);
+  const submitSpotifySong = () => {
+    // Check if any of the fields are empty
+    if (!songEntry.track_name && !songEntry.performer && !songEntry.album) {
+      // Display a warning message and return early
+      alert("At least one field is required for submit.");
+      return;
+    }
+  
+    // Construct the JSON object with user's song entry
+    const userSong = {
+      track_name: songEntry.track_name,
+      performer: songEntry.performer,
+      album: songEntry.album,
+    };
+  
+    const storedToken = localStorage.getItem('token');
+    console.log(storedToken);
+  
+    fetch('http://127.0.0.1:5000/list_and_add_songs', {
+      method: 'POST',
+      headers: {
+        "Authorization": storedToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userSong),
+      credentials: 'include',
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.relevant_songs) {
+          setRelevantSongs(data.relevant_songs);
+        } else {
+          console.log("No relevant songs found");
+        }
+      })
+      .catch((error) => {
+        console.error('Error listing songs:', error);
+      });
+  };
+  
   const handleExportSubmit = (selectedArtist, selectedRating) => {
     const storedToken = localStorage.getItem('token');
     console.log(storedToken);
@@ -449,6 +512,7 @@ function SongList() {
             />
           </div>
           <button onClick={showManualPopup}>Manual Enter</button>
+          <button onClick={showSpotifyPopup}>Spotify Upload</button>
         </div>
       )}
 
@@ -502,6 +566,60 @@ function SongList() {
           <button onClick={submitSong}>Submit</button>
         </div>
       )}
+
+      {isSpotifyPopupVisible && (
+        <div className="popup">
+          <button className="close-button" onClick={hideSpotifyPopup}>
+            X
+          </button>
+          <div className="song-entry-container">
+            <div className="song-entry-row">
+            </div>
+            <div className="song-entry-row">
+              <input
+                type="text"
+                placeholder="Title..."
+                value={songEntry.track_name}
+                onChange={(e) => handleSongInputChange(e, "track_name")}
+              />
+              <input
+                type="text"
+                placeholder="Artist..."
+                value={songEntry.performer}
+                onChange={(e) => handleSongInputChange(e, "performer")}
+              />
+              <input
+                type="text"
+                placeholder="Album..."
+                value={songEntry.album}
+                onChange={(e) => handleSongInputChange(e, "album")}
+              />
+            </div>
+
+            {relevantSongs.length > 0 && (
+              <div className="relevant-songs-container">
+                <ul>
+                  {relevantSongs.map((song, index) => (
+                    <li key={index}>
+                      <div className="song-info">
+                        <p className="song-title">{song.track_name}, {song.album}</p>
+                        <p className="song-artist">{song.performer}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+          </div>
+
+          <button className="back-button" onClick={showPopup}>
+            Back
+          </button>
+          <button onClick={submitSpotifySong}>Submit</button>
+        </div>
+      )}
+
 
 {isEditPopupVisible && (
   <div className="popup">
