@@ -47,8 +47,6 @@ blocked_users = db.Table('blocked_users',
 )
 
 
-
-
 class FriendRequest(db.Model):
     __tablename__ = 'friend_requests'
 
@@ -631,6 +629,22 @@ def view_incoming_invites():
 
 
 
+@app.route('/outgoing_invites', methods=['GET'])
+def view_outgoing_invites():
+    token = request.headers.get('Authorization')
+    current_user = User.query.filter_by(token=token).first()
+    if not current_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Fetch all pending invites sent by the current user
+    invites = FriendRequest.query.filter_by(sender=current_user.username, status='pending').all()
+    invites_data = [{'id': invite.id, 'receiver': invite.receiver, 'sent_at': invite.sent_at} for invite in invites]
+
+    return jsonify(invites_data), 200
+
+
+
+
 @app.route('/respond_invite', methods=['POST'])
 def respond_invite():
     token = request.headers.get('Authorization')
@@ -682,13 +696,24 @@ def remove_friend():
 
     friend_username = request.json.get('friend_username')
     friend = User.query.filter_by(username=friend_username).first()
-    if not friend or friend not in current_user.friends:
+    if not friend:
         return jsonify({'message': 'Friend not found'}), 404
 
+    # Check if the friend is in the current user's friends list
+    if friend not in current_user.friends:
+        return jsonify({'message': 'Friend not found in your friend list'}), 404
+
+    # Remove the friend from the current user's list
     current_user.friends.remove(friend)
+
+    # Also remove the current user from the friend's list
+    if current_user in friend.friends:
+        friend.friends.remove(current_user)
+
     db.session.commit()
 
     return jsonify({'message': 'Friend removed'}), 200
+
 
 
 
