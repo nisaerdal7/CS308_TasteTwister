@@ -5,7 +5,7 @@ import csv
 import json
 from werkzeug.utils import secure_filename
 from sqlalchemy import MetaData, Table, func, extract
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from sqlalchemy.sql import not_
 from sqlalchemy.exc import SQLAlchemyError
 from flask import Response, stream_with_context
@@ -267,8 +267,8 @@ def logout():
         return jsonify({'error': 'Invalid token'}), 401
 
     # Invalidate the token
-    user.token = None
-    db.session.commit()
+    #user.token = None
+    #db.session.commit()
 
     return jsonify({'message': 'Logged out successfully'}), 200
 
@@ -311,7 +311,7 @@ def songs():
         album = data.get('album')
         rating = data.get('rating')
 
-        if not all([track_name, performer, album, rating]):
+        if not all([track_name, performer, album]):
             return jsonify({'error': 'Missing song data'}), 400
 
         add_or_update_song(track_name, performer, album, rating, user.username)
@@ -732,11 +732,15 @@ def recommend_playlist_all_users():
     # Fetch songs from other users, excluding user's songs and blocked users
     user_songs = [(song.track_name, song.album) for song in user.songs]
     blocked_users = [blocked_user.username for blocked_user in user.blocked_by]
+
+    # Create a list of conditions to exclude each song in user_songs
+    exclusion_conditions = [and_(Song.track_name == track_name, Song.album == album) for track_name, album in user_songs]
+
     query = Song.query.filter(
         Song.username != user.username,
         Song.permission.is_(True),
         Song.rating >= 4,
-        db.and_(Song.track_name, Song.album).notin_(user_songs),
+        not_(or_(*exclusion_conditions)),  # Exclude songs in user_songs
         not_(Song.username.in_(blocked_users))
     )
 
@@ -868,11 +872,14 @@ def recommend_playlist_from_all_friends():
     user_songs = [(song.track_name, song.album) for song in user.songs]
     blocked_users = [blocked_user.username for blocked_user in user.blocked_by]
     friend_usernames = [friend.username for friend in user.friends if friend.username not in blocked_users]
-    
+
+    # Create a list of conditions to exclude each song in user_songs
+    exclusion_conditions = [and_(Song.track_name == track_name, Song.album == album) for track_name, album in user_songs]
+
     query = Song.query.filter(
         Song.username.in_(friend_usernames),
         Song.rating >= 4,
-        db.and_(Song.track_name, Song.album).notin_(user_songs)
+        not_(or_(*exclusion_conditions))  # Exclude songs in user_songs
     )
 
     # Extract timeframe from query parameters
