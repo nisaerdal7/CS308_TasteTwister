@@ -986,7 +986,7 @@ def get_filtered_songs_stats(query, timeframe, username, filter_by=None, filter_
 
     daily_avg_ratings = {}
     for row in grouped_query.all():
-        daily_avg_ratings[row.date] = float(row.avg_rating)
+        daily_avg_ratings[row.date.isoformat()] = float(row.avg_rating)
 
     # Overall mean rating for the timeframe
     mean_rating = query.with_entities(func.avg(Song.rating)).scalar()
