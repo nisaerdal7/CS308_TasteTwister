@@ -3,6 +3,7 @@ import './SongList.css';
 import editIcon from './images/edit-icon.png'; // Adjust the path based on your project structure
 import deleteIcon from './images/delete-icon.webp';
 import downloadIcon from './images/download-icon.png'; 
+import backIcon from './images/back-icon.png';
 
 function SongList() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -552,6 +553,10 @@ function SongList() {
           </button>
           <div className="song-entry-container">
             <div className="song-entry-row">
+              <p></p>
+              <p></p>
+              <p></p>
+              <p></p>
                 <p>Enter your song!</p>
             </div>
             <div className="song-entry-row">
@@ -590,7 +595,11 @@ function SongList() {
             </div>
             </div>
           <button className="back-button" onClick={showPopup}>
-            Back
+          <img
+            src={backIcon}
+            alt="Back Icon"
+            style={{ width: '13px', height: '13px' }} // Adjust the size as needed
+          />
           </button>
           <button onClick={submitSong}>Submit</button>
         </div>
@@ -673,7 +682,11 @@ function SongList() {
           </div>
 
           <button className="back-button" onClick={showPopup}>
-            Back
+          <img
+            src={backIcon}
+            alt="Back Icon"
+            style={{ width: '13px', height: '13px' }} // Adjust the size as needed
+          />
           </button>
           <button onClick={submitSpotifySong}>Submit</button>
         </div>
@@ -711,6 +724,7 @@ function SongList() {
        <span 
           style={{marginTop: '20px' }}
           >
+            <p></p>
           <p>Delete all songs by the artist</p>
            </span>
        </div>
