@@ -206,7 +206,9 @@ const Profile = () => {
               value={newFriend}
               onChange={(e) => setNewFriend(e.target.value)}
             />
-            <button onClick={handleSendRequest}>Send Request</button>
+            <button onClick={handleSendRequest} 
+            className="send-request-button"
+            >Send Request</button>
           </div>
         </div>
       </div>
