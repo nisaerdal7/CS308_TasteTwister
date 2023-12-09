@@ -5,7 +5,9 @@ import csv
 import json
 from werkzeug.utils import secure_filename
 from sqlalchemy import MetaData, Table, func, extract
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
+from sqlalchemy.sql import not_
+from sqlalchemy.exc import SQLAlchemyError
 from flask import Response, stream_with_context
 from io import StringIO
 from flask_bcrypt import Bcrypt
@@ -40,6 +42,12 @@ friendships = db.Table('friendships',
     db.Column('user2', db.String(255), db.ForeignKey('users.username'), primary_key=True)
 )
 
+blocked_users = db.Table('blocked_users',
+    db.Column('blocker', db.String(255), db.ForeignKey('users.username'), primary_key=True),
+    db.Column('blocked', db.String(255), db.ForeignKey('users.username'), primary_key=True)
+)
+
+
 class FriendRequest(db.Model):
     __tablename__ = 'friend_requests'
 
@@ -71,6 +79,15 @@ class User(db.Model):
                                     backref='sender_user', lazy='dynamic')
     received_requests = db.relationship('FriendRequest', foreign_keys=[FriendRequest.receiver],
                                         backref='receiver_user', lazy='dynamic')
+    
+    # Relationship for blocked users
+    blocked = db.relationship('User', 
+                            secondary=blocked_users,
+                            primaryjoin=(blocked_users.c.blocker == username),
+                            secondaryjoin=(blocked_users.c.blocked == username),
+                            backref=db.backref('blocked_by', lazy='dynamic'),
+                            lazy='dynamic')
+
 
 class Song(db.Model):
     __tablename__ = 'songs'
@@ -88,47 +105,29 @@ class Song(db.Model):
         self.rating = new_rating
         db.session.commit()
 
+def add_or_update_song(user_track_name, user_performer, user_album, rating, username):
+    # Convert empty string in rating to None
+    if rating == '':
+        rating = None
 
+    # Check if the song already exists in the database for this user
+    existing_song = Song.query.filter_by(track_name=user_track_name, performer=user_performer, album=user_album, username=username).first()
+
+    user = User.query.filter_by(username=username).first()
+    permission = user.permission
+
+    if existing_song:
+        # Update the existing song with user-provided data
+        existing_song.rating = rating  # Only the rating is updated as it's user-specific
+    else:
+        # Add a new song with user-provided data
+        new_song = Song(track_name=user_track_name, performer=user_performer, album=user_album, rating=rating, username=username, permission=permission)
+        db.session.add(new_song)
+
+    db.session.commit()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def add_or_update_song(user_track_name, user_performer, user_album, rating, username):
-    # Convert empty string in rating to None
-    if rating == '':  # <-- This is the added line
-        rating = None  # <-- This is the added line
-
-    
-    #Add a new song or update an existing one with verified information from Spotify.
-    myclient = Client(SPOTIFY_CLIENT_ID , SPOTIFY_CLIENT_SECRET)
-    search_result = myclient.search(user_track_name + " " + user_performer + " " + user_album)
-    tracks = search_result.get_tracks()
-    if tracks:
-        track = tracks[0]
-        # Now you can process the track as before
-        track_name = track.name
-        performer = track.artists[0].name
-        album = track.album.name
-
-        # Check if the song already exists in the database for this user
-        existing_song = Song.query.filter_by(track_name=track_name, performer=performer, album=album, username=username).first()
-
-        user = User.query.filter_by(username=username).first()
-        permission = user.permission
-        
-        if existing_song:
-            # Update the existing song with Spotify data
-            existing_song.rating = rating  # Only the rating is updated as it's user-specific
-        else:
-            # Add a new song with Spotify data
-            new_song = Song(track_name=track_name, performer=performer, album=album, rating=rating, username=username, permission=permission)
-            db.session.add(new_song)
-    else:
-        # Handle the case when no tracks are found
-        flash('No tracks found on Spotify with the provided details.', 'warning')
-        # You can redirect the user or take any other action as required
-    
-    db.session.commit()
 
 def add_songs_from_csv(file_path, username):
     invalid_rows = 0
@@ -139,11 +138,8 @@ def add_songs_from_csv(file_path, username):
                 track_name = row['track_name']
                 performer = row['performer']
                 album = row['album']
-                print(row['performer'])
                 if (row['rating'] == None):
-                    
                     rating = row['rating']
-                    print("SELAMMMMMMMMMM", rating)
                 else:
                     rating = int(row['rating'])
                 
@@ -272,7 +268,8 @@ def logout():
         return jsonify({'error': 'Invalid token'}), 401
 
     # Invalidate the token
-    user.token = None
+    #user.token = None
+    #db.session.commit()
 
     return jsonify({'message': 'Logged out successfully'}), 200
 
@@ -315,7 +312,7 @@ def songs():
         album = data.get('album')
         rating = data.get('rating')
 
-        if not all([track_name, performer, album, rating]):
+        if not all([track_name, performer, album]):
             return jsonify({'error': 'Missing song data'}), 400
 
         add_or_update_song(track_name, performer, album, rating, user.username)
@@ -324,7 +321,7 @@ def songs():
     # If method is neither GET nor POST
     return jsonify({'error': 'Invalid request method'}), 405
 
-# New route for listing songs and adding the selected song
+# Route for listing songs and adding the selected song
 @app.route('/list_and_add_songs', methods=['POST'])
 def list_and_add_songs():
     token = request.headers.get('Authorization')
@@ -347,53 +344,9 @@ def list_and_add_songs():
         return jsonify({'message': 'No relevant songs found'}), 200
 
     # Include user permission in the response if needed
-    response_data = {'relevant_songs': relevant_songs, 'user_permission': user.permission}
+    response_data = {'relevant_songs': relevant_songs}
+    #response_data = {'relevant_songs': relevant_songs, 'user_permission': user.permission
     return jsonify(response_data), 200
-
-# New route for adding the selected song
-@app.route('/add_selected_song', methods=['POST'])
-def add_selected_song():
-    token = request.headers.get('Authorization')
-    if not token:
-        return jsonify({'error': 'Authorization token is required'}), 401
-
-    user = User.query.filter_by(token=token).first()
-    if not user:
-        return jsonify({'error': 'Invalid token'}), 401
-
-    data = request.get_json()
-    chosen_song_data = data.get('chosen_song')
-    if not chosen_song_data:
-        return jsonify({'error': 'Chosen song data is required'}), 400
-
-    # Extract relevant information from the chosen song data
-    chosen_track_name = chosen_song_data.get('track_name')
-    chosen_performer = chosen_song_data.get('performer')
-    chosen_album = chosen_song_data.get('album')
-    rating = chosen_song_data.get('rating')
-
-    # Check if the song already exists in the database for this user
-    existing_song = Song.query.filter_by(track_name=chosen_track_name, performer=chosen_performer, album=chosen_album, username=user.username).first()
-
-    if existing_song:
-        # Update the existing song with a new rating
-        existing_song.rating = rating
-    else:
-        # Add a new song with Spotify data and user rating
-        new_song = Song(
-            track_name=chosen_track_name,
-            performer=chosen_performer,
-            album=chosen_album,
-            rating=rating,
-            username=user.username,
-            permission=user.permission
-        )
-        db.session.add(new_song)
-
-    # Commit changes to the database
-    db.session.commit()
-
-    return jsonify({'message': 'Chosen song added successfully!'}), 201
 
 def list_most_relevant_songs(track_name, performer, album):
     # Use Spotify API to get the most relevant 5 songs
@@ -406,7 +359,7 @@ def list_most_relevant_songs(track_name, performer, album):
             {
                 "track_name": track.name,
                 "performer": track.artists[0].name,
-                "album": track.album.name,
+                "album": track.album.name,             
             } for track in tracks[:5]
         ]
         return relevant_songs
@@ -677,6 +630,22 @@ def view_incoming_invites():
 
 
 
+@app.route('/outgoing_invites', methods=['GET'])
+def view_outgoing_invites():
+    token = request.headers.get('Authorization')
+    current_user = User.query.filter_by(token=token).first()
+    if not current_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Fetch all pending invites sent by the current user
+    invites = FriendRequest.query.filter_by(sender=current_user.username, status='pending').all()
+    invites_data = [{'id': invite.id, 'receiver': invite.receiver, 'sent_at': invite.sent_at} for invite in invites]
+
+    return jsonify(invites_data), 200
+
+
+
+
 @app.route('/respond_invite', methods=['POST'])
 def respond_invite():
     token = request.headers.get('Authorization')
@@ -728,13 +697,24 @@ def remove_friend():
 
     friend_username = request.json.get('friend_username')
     friend = User.query.filter_by(username=friend_username).first()
-    if not friend or friend not in current_user.friends:
+    if not friend:
         return jsonify({'message': 'Friend not found'}), 404
 
+    # Check if the friend is in the current user's friends list
+    if friend not in current_user.friends:
+        return jsonify({'message': 'Friend not found in your friend list'}), 404
+
+    # Remove the friend from the current user's list
     current_user.friends.remove(friend)
+
+    # Also remove the current user from the friend's list
+    if current_user in friend.friends:
+        friend.friends.remove(current_user)
+
     db.session.commit()
 
     return jsonify({'message': 'Friend removed'}), 200
+
 
 
 
@@ -750,33 +730,29 @@ def recommend_playlist_all_users():
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
 
-    # Extract additional query parameters
-    username = user.username  # Assuming the username is derived from the authenticated user
-    timeframe = request.args.get('timeframe', 'all-time')
+    # Fetch songs from other users, excluding user's songs and blocked users
+    user_songs = [(song.track_name, song.album) for song in user.songs]
+    blocked_users = [blocked_user.username for blocked_user in user.blocked_by]
 
-    # Fetch 2 songs from the user with rating >= 4
-    user_songs = Song.query.filter(
-        Song.username == username, 
-        Song.rating >= 4
-    ).order_by(db.func.random()).limit(2).all()
+    # Create a list of conditions to exclude each song in user_songs
+    exclusion_conditions = [and_(Song.track_name == track_name, Song.album == album) for track_name, album in user_songs]
 
-    # Fetch 8 songs from other users with rating >= 4
     query = Song.query.filter(
-        Song.username != username, 
-        Song.permission.is_(True), 
-        Song.rating >= 4
+        Song.username != user.username,
+        Song.permission.is_(True),
+        Song.rating >= 4,
+        not_(or_(*exclusion_conditions)),  # Exclude songs in user_songs
+        not_(Song.username.in_(blocked_users))
     )
+
+    # Extract timeframe from query parameters
+    timeframe = request.args.get('timeframe', 'all-time')
     if timeframe == 'recent':
         recent_time = datetime.now() - timedelta(hours=24)
         query = query.filter(Song.updated_at >= recent_time)
 
-    other_songs = query.order_by(db.func.random()).limit(8).all()
-
-    # Combine songs to create the playlist
-    playlist = user_songs + other_songs
-
-    # Randomize the order of the songs in the playlist
-    random.shuffle(playlist)
+    # Fetch 10 songs with random order
+    other_songs = query.order_by(db.func.random()).limit(10).all()
 
     # Convert songs to JSON format
     playlist_json = [{
@@ -788,9 +764,11 @@ def recommend_playlist_all_users():
         "username": song.username,
         "permission": song.permission,
         "updated_at": song.updated_at
-    } for song in playlist]
+    } for song in other_songs]
 
     return jsonify(playlist_json), 200
+
+
 
 @app.route('/recommend_playlist_friends_duo', methods=['GET'])
 def recommend_playlist_friends_duo():
@@ -813,14 +791,19 @@ def recommend_playlist_friends_duo():
     if not friend or friend not in user.friends:
         return jsonify({'error': 'Friend not found or users are not friends'}), 404
 
+    # Check if either user has blocked the other
+    if user in friend.blocked or friend in user.blocked:
+        return jsonify({'error': 'Cannot create playlist as one user has blocked the other'}), 403
+
     # Extract timeframe from query parameters
     timeframe = request.args.get('timeframe', 'all-time')
 
     # Define a base query for fetching songs
-    base_query = lambda username: Song.query.filter(
-        Song.username == username, 
-        Song.rating >= 4
-    )
+    def base_query(username):
+        return Song.query.filter(
+            Song.username == username, 
+            Song.rating >= 4
+        )
 
     # Apply timeframe filter if needed
     if timeframe == 'recent':
@@ -835,9 +818,27 @@ def recommend_playlist_friends_duo():
     user_songs = user_songs_query.order_by(db.func.random()).limit(5).all()
     friend_songs = friend_songs_query.order_by(db.func.random()).limit(5).all()
 
-    # Combine and shuffle the playlist
-    playlist = user_songs + friend_songs
-    random.shuffle(playlist)
+    # Filter out duplicate songs
+    unique_songs = set()
+    combined_playlist = []
+
+    for song_list in [user_songs, friend_songs]:
+        for song in song_list:
+            song_identity = (song.track_name, song.album)
+            if song_identity not in unique_songs:
+                unique_songs.add(song_identity)
+                combined_playlist.append(song)
+            else:
+                # Fetch an additional unique song
+                additional_song = base_query(song.username).filter(
+                    db.and_(Song.track_name, Song.album).notin_(unique_songs)
+                ).order_by(db.func.random()).first()
+                if additional_song:
+                    unique_songs.add((additional_song.track_name, additional_song.album))
+                    combined_playlist.append(additional_song)
+
+    # Shuffle the playlist
+    random.shuffle(combined_playlist)
 
     # Convert to JSON
     playlist_json = [{
@@ -849,9 +850,10 @@ def recommend_playlist_friends_duo():
         "username": song.username,
         "permission": song.permission,
         "updated_at": song.updated_at
-    } for song in playlist]
+    } for song in combined_playlist]
 
     return jsonify(playlist_json), 200
+
 
 
 
@@ -867,44 +869,28 @@ def recommend_playlist_from_all_friends():
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
 
-    # Extract timeframe from query parameters
-    timeframe = request.args.get('timeframe', 'all-time')
+    # Fetch songs from friends, excluding user's songs and blocked users
+    user_songs = [(song.track_name, song.album) for song in user.songs]
+    blocked_users = [blocked_user.username for blocked_user in user.blocked_by]
+    friend_usernames = [friend.username for friend in user.friends if friend.username not in blocked_users]
 
-    # Define a base query for fetching songs
-    base_query = lambda username: Song.query.filter(
-        Song.username == username, 
-        Song.rating >= 4
+    # Create a list of conditions to exclude each song in user_songs
+    exclusion_conditions = [and_(Song.track_name == track_name, Song.album == album) for track_name, album in user_songs]
+
+    query = Song.query.filter(
+        Song.username.in_(friend_usernames),
+        Song.rating >= 4,
+        not_(or_(*exclusion_conditions))  # Exclude songs in user_songs
     )
 
-    # Apply timeframe filter if needed
+    # Extract timeframe from query parameters
+    timeframe = request.args.get('timeframe', 'all-time')
     if timeframe == 'recent':
         recent_time = datetime.now() - timedelta(hours=24)
-        user_songs_query = base_query(user.username).filter(Song.updated_at >= recent_time)
-        friend_songs_query = Song.query.join(
-            User, User.username == Song.username
-        ).filter(
-            User.username != user.username, 
-            User.username.in_([friend.username for friend in user.friends]), 
-            Song.rating >= 4,
-            Song.updated_at >= recent_time
-        )
-    else:
-        user_songs_query = base_query(user.username)
-        friend_songs_query = Song.query.join(
-            User, User.username == Song.username
-        ).filter(
-            User.username != user.username, 
-            User.username.in_([friend.username for friend in user.friends]), 
-            Song.rating >= 4
-        )
+        query = query.filter(Song.updated_at >= recent_time)
 
-    # Fetch songs with random order and limit
-    user_songs = user_songs_query.order_by(db.func.random()).limit(2).all()
-    friend_songs = friend_songs_query.order_by(db.func.random()).limit(8).all()
-
-    # Combine and shuffle the playlist
-    playlist = user_songs + friend_songs
-    random.shuffle(playlist)
+    # Fetch 10 songs with random order
+    friend_songs = query.order_by(db.func.random()).limit(10).all()
 
     # Convert to JSON
     playlist_json = [{
@@ -916,9 +902,11 @@ def recommend_playlist_from_all_friends():
         "username": song.username,
         "permission": song.permission,
         "updated_at": song.updated_at
-    } for song in playlist]
+    } for song in friend_songs]
 
     return jsonify(playlist_json), 200
+
+
 
 def filter_songs_by_timeframe(query, timeframe):
     if timeframe == 'last_24_hours':
@@ -934,12 +922,12 @@ def get_top_albums_or_performers(query, attribute):
             .limit(10)
             .all())
 
+
 @app.route('/stats/all-time/<username>', methods=['GET'])
 @app.route('/stats/last-7-days/<username>', methods=['GET'])
 @app.route('/stats/last-24-hours/<username>', methods=['GET'])
 def user_stats(username):
     user = User.query.filter_by(username=username).first()
-    print(username, user)
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
@@ -955,11 +943,11 @@ def user_stats(username):
 
     # Top 10 albums
     top_albums = get_top_albums_or_performers(songs_query, Song.album)
-    top_albums_data = [{'album': album[0], 'average_rating': int(album[1])} for album in top_albums]
+    top_albums_data = [{'album': album[0], 'average_rating': album[1]} for album in top_albums]
 
     # Top 10 performers
     top_performers = get_top_albums_or_performers(songs_query, Song.performer)
-    top_performers_data = [{'performer': performer[0], 'average_rating': int(performer[1])} for performer in top_performers]
+    top_performers_data = [{'performer': performer[0], 'average_rating': performer[1]} for performer in top_performers]
 
     return jsonify({
         'top_songs': top_songs_data,
@@ -992,17 +980,14 @@ def get_filtered_songs_stats(query, timeframe, username, filter_by=None, filter_
 
     # Group by day and calculate average rating per day
     grouped_query = (query.with_entities(
-                        extract('day', Song.updated_at).label('day'),
-                        extract('month', Song.updated_at).label('month'),
-                        extract('year', Song.updated_at).label('year'),
+                        func.date(Song.updated_at).label('date'),
                         func.avg(Song.rating).label('avg_rating'))
-                    .group_by('year', 'month', 'day')
-                    .order_by('year', 'month', 'day'))
+                    .group_by('date')
+                    .order_by('date'))
 
-    daily_avg_ratings = []
+    daily_avg_ratings = {}
     for row in grouped_query.all():
-        day_str = f"{int(row.year)}-{int(row.month):02d}-{int(row.day):02d}"
-        daily_avg_ratings.append((day_str, float(row.avg_rating)))
+        daily_avg_ratings[row.date] = float(row.avg_rating)
 
     # Overall mean rating for the timeframe
     mean_rating = query.with_entities(func.avg(Song.rating)).scalar()
@@ -1022,13 +1007,65 @@ def mean_stats():
     query = Song.query
     mean_rating, daily_avg_ratings = get_filtered_songs_stats(query, timeframe, username, filter_by, filter_value)
 
-    daily_ratings_format = {f't{i+1}': rating for i, (_, rating) in enumerate(daily_avg_ratings)}
-
     return jsonify({
         'mean_rating': mean_rating,
-        'daily_average_ratings': daily_ratings_format
+        'daily_average_ratings': daily_avg_ratings
     }), 200
 
+@app.route('/block_friend', methods=['POST'])
+def block_friend():
+    data = request.json
+    blocker_username = data.get('blocker')
+    blocked_username = data.get('blocked')
+
+    try:
+        blocker = User.query.get(blocker_username)
+        blocked = User.query.get(blocked_username)
+
+        if not blocker or not blocked:
+            return jsonify({"message": "User not found"}), 404
+
+        # Check if they are already blocked
+        if blocked in blocker.blocked:
+            return jsonify({"message": "User already blocked"}), 400
+
+        # Add to blocked list
+        blocker.blocked.append(blocked)
+        db.session.commit()
+
+        return jsonify({"message": f"{blocked_username} blocked"}), 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/unblock_friend', methods=['POST'])
+def unblock_friend():
+    data = request.json
+    blocker_username = data.get('blocker')
+    blocked_username = data.get('blocked')
+
+    try:
+        blocker = User.query.get(blocker_username)
+        blocked = User.query.get(blocked_username)
+
+        if not blocker or not blocked:
+            return jsonify({"message": "User not found"}), 404
+
+        # Check if they are blocked
+        if blocked not in blocker.blocked:
+            return jsonify({"message": "User not blocked"}), 400
+
+        # Remove from blocked list
+        blocker.blocked.remove(blocked)
+        db.session.commit()
+
+        return jsonify({"message": f"{blocked_username} unblocked"}), 200
+
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+    
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
