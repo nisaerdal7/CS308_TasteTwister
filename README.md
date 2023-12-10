@@ -150,31 +150,32 @@ Handle multiple performers and versions of the same song.
 
 Manual user input via web/mobile application.  
 Batch input via file upload.  
-Import data from a self-hosted or cloud database service.  
+Import data from a MySql database dump.  
+Search and import songs from Spotify.
 Rate non-rated songs/albums/performers.  
 Remove a song/album/performer from the system.  
 #### Analysis of Musical Choices:
 
 Display statistical information about user likings.   
-Create tables and charts based on user preferences.   
+Line chart of the users daily ratings. 
 Allow user customization of analysis mediums.  
 #### Recommendations:
 
 Provide music recommendations based on user ratings.  
-Make recommendations based on temporal properties and genres.  
+Create duo blend playlists from the favorite songs of the user and selected friend.
 Recommend based on friendship activity.  
 #### Social Features:
 
 User authentication with password.  
 Friend management with customizable activity inclusion.  
+Block friends from using their data for recommendation.
 Share analysis results on social media.  
 Export user ratings with filtering options.  
 
 ## Additional Features 
 In addition to the MVP, specific features are being implemented:  
 
-Added a feature to add all songs from a Spotify playlist using the playlist URL.  
-Performed cross-checks using the Spotify API.  
+The passwords are kept with password salting.
 Database hosted on Google Cloud.  
 
 ##### Thank you for checking out TasteTwister!
