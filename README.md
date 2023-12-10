@@ -135,7 +135,8 @@ Headers:
 }
 ```
 ## ER Diagram
-<img width="487" alt="image" src="https://github.com/nisaerdal7/CS308_TasteTwister/assets/76566903/18465dae-d2d9-4f03-b254-5a8d3b0e38fa">
+![image](https://github.com/nisaerdal7/CS308_TasteTwister/assets/76566903/13d3a4b5-9e25-462a-b72d-6de278c9c0ec)
+
 
 
 ## MVP Features
