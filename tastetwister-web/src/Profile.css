@@ -107,6 +107,7 @@ button {
 
 .profile-popup {
   background: rgba(0, 0, 0, 0.9);
+  color:#fff;
   padding: 20px;
   border-radius: 5px;
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
@@ -121,5 +122,9 @@ button {
   margin: 0 10px;
   padding: 8px 16px;
   cursor: pointer;
+}
+
+.friend-item {
+  margin-right: 0px; /* Adjust the margin to your liking */
 }
 

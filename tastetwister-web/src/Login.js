@@ -129,7 +129,7 @@ function LoginForm() {
                         </button>
                         <div className="checkbox-container">
                             <label>
-                            Permission
+                            I give permission for my data to be used for recommendation.
                             <input
                                 type="checkbox"
                                 checked={permission}

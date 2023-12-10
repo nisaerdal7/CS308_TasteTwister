@@ -154,7 +154,7 @@ function TasteTwist() {
   
       if (!response.ok) {
         // Handle error if the response status is not OK (2xx)
-        alert('User is not found in your friends.');
+        alert('User is not found in your friends or blocked you.');
         const errorMessage = await response.text();
         throw new Error(`Failed to fetch playlist: ${errorMessage}`);
       }

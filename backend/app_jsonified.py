@@ -944,7 +944,7 @@ def user_stats(username):
     # Top 10 albums
     top_albums = get_top_albums_or_performers(songs_query, Song.album)
     top_albums_data = [{'album': album[0], 'average_rating': album[1]} for album in top_albums]
-
+ 
     # Top 10 performers
     top_performers = get_top_albums_or_performers(songs_query, Song.performer)
     top_performers_data = [{'performer': performer[0], 'average_rating': performer[1]} for performer in top_performers]
@@ -987,7 +987,8 @@ def get_filtered_songs_stats(query, timeframe, username, filter_by=None, filter_
 
     daily_avg_ratings = {}
     for row in grouped_query.all():
-        daily_avg_ratings[row.date.isoformat()] = float(row.avg_rating)
+        if(row.avg_rating):
+            daily_avg_ratings[row.date.isoformat()] = float(row.avg_rating)
 
     # Overall mean rating for the timeframe
     mean_rating = query.with_entities(func.avg(Song.rating)).scalar()
@@ -1065,6 +1066,26 @@ def unblock_friend():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/blocked_friends', methods=['GET'])
+def view_blocked_friends():
+    # Retrieve token from the request headers
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    # Authenticate user based on the token
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Fetch blocked friends for the user
+    blocked_friends = user.blocked.all()
+
+    # Convert blocked friends to JSON format
+    blocked_friends_data = [{'username': friend.username} for friend in blocked_friends]
+
+    return jsonify(blocked_friends_data), 200
     
 if __name__ == '__main__':
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
