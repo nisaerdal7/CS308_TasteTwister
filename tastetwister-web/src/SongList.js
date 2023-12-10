@@ -3,6 +3,7 @@ import './SongList.css';
 import editIcon from './images/edit-icon.png'; // Adjust the path based on your project structure
 import deleteIcon from './images/delete-icon.webp';
 import downloadIcon from './images/download-icon.png'; 
+import backIcon from './images/back-icon.png';
 
 function SongList() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -552,6 +553,10 @@ function SongList() {
           </button>
           <div className="song-entry-container">
             <div className="song-entry-row">
+              <p></p>
+              <p></p>
+              <p></p>
+              <p></p>
                 <p>Enter your song!</p>
             </div>
             <div className="song-entry-row">
@@ -590,64 +595,74 @@ function SongList() {
             </div>
             </div>
           <button className="back-button" onClick={showPopup}>
-            Back
+          <img
+            src={backIcon}
+            alt="Back Icon"
+            style={{ width: '13px', height: '13px' }} // Adjust the size as needed
+          />
           </button>
           <button onClick={submitSong}>Submit</button>
         </div>
       )}
 
-      {isSpotifyPopupVisible && (
-        <div className="popup">
-          <button className="close-button" onClick={hideSpotifyPopup}>
-            X
-          </button>
-          <div className="song-entry-container">
-            <div className="song-entry-row">
-            </div>
-            <div className="song-entry-row">
-              <input
-                type="text"
-                placeholder="Title..."
-                value={songEntry.track_name}
-                onChange={(e) => handleSongInputChange(e, "track_name")}
-              />
-              <input
-                type="text"
-                placeholder="Artist..."
-                value={songEntry.performer}
-                onChange={(e) => handleSongInputChange(e, "performer")}
-              />
-              <input
-                type="text"
-                placeholder="Album..."
-                value={songEntry.album}
-                onChange={(e) => handleSongInputChange(e, "album")}
-              />
-            </div>
+{isSpotifyPopupVisible && (
+  <div className="popup">
+    <div className="button-row" style={{ marginBottom: '45px' }}>
+      <button className="close-button" onClick={hideSpotifyPopup}>
+        X
+      </button>
+      <button className="back-button" onClick={showPopup}>
+        <img
+          src={backIcon}
+          alt="Back Icon"
+          style={{ width: '13px', height: '13px' }}
+        />
+      </button>
+    </div>
 
-            {relevantSongs.length > 0 && (
-              <div className="relevant-songs-container">
-                <ul>
-                  {relevantSongs.map((song, index) => (
-                    <li key={index} onClick={() => handleSelectSong(song)}>
-                      <div className="song-info">
-                        <p className="song-title">{song.track_name}, {song.album}</p>
-                        <p className="song-artist">{song.performer}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+    <div className="song-entry-container">
+      <div className="song-entry-row">
+        <input
+          type="text"
+          placeholder="Title..."
+          value={songEntry.track_name}
+          onChange={(e) => handleSongInputChange(e, "track_name")}
+        />
+        <input
+          type="text"
+          placeholder="Artist..."
+          value={songEntry.performer}
+          onChange={(e) => handleSongInputChange(e, "performer")}
+        />
+        <input
+          type="text"
+          placeholder="Album..."
+          value={songEntry.album}
+          onChange={(e) => handleSongInputChange(e, "album")}
+        />
+      </div>
+
+      {relevantSongs.length > 0 && (
+        <div className="relevant-songs-container">
+          <ul>
+            {relevantSongs.map((song, index) => (
+              <li key={index} onClick={() => handleSelectSong(song)}>
+                <div className="song-info">
+                  <p className="song-title">{song.track_name}, {song.album}</p>
+                  <p className="song-artist">{song.performer}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {showAddRatingPopup && (
-        // Render your rating popup here
-        // You can use the same popup logic as your Spotify popup
         <div className="popup">
           <button className="close-button" onClick={() => setShowAddRatingPopup(false)}>
             X
           </button>
           <div className="rating-popup" style={{ background: 'black', color: 'gray', display: 'flex', flexDirection: 'column' }}>
-            {/* Your rating dropdown menu and UI here */}
             <select
               value={selectedAddRating}
               onChange={(e) => setSelectedAddRating(e.target.value)}
@@ -670,14 +685,12 @@ function SongList() {
         </div>
       )}
 
-          </div>
+    </div>
 
-          <button className="back-button" onClick={showPopup}>
-            Back
-          </button>
-          <button onClick={submitSpotifySong}>Submit</button>
-        </div>
-      )}
+    <button onClick={submitSpotifySong}>Submit</button>
+  </div>
+)}
+
 
 
 {isEditPopupVisible && (
@@ -711,6 +724,7 @@ function SongList() {
        <span 
           style={{marginTop: '20px' }}
           >
+            <p></p>
           <p>Delete all songs by the artist</p>
            </span>
        </div>

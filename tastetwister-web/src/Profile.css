@@ -43,11 +43,12 @@
   margin-right: 10px;
   border-radius: 4px;
   user-select: none;
+  color:rgba(255, 255, 255, 0.5);
 }
 
 .tab.active {
-  background-color: rgba(255, 255, 255, 0.5);
-  color: #000;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #fff;
 }
 
 .my-profile-icon {
@@ -128,3 +129,11 @@ button {
   margin-right: 0px; /* Adjust the margin to your liking */
 }
 
+.send-request-button {
+  cursor: pointer;
+  background-color: #329374;
+  color: #fff;
+  border: none;
+  padding: 10px;
+  /* Add any other styles as needed */
+}

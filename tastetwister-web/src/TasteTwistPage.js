@@ -8,6 +8,7 @@ function TasteTwistPage() {
   return (
     <div className="taste-twist-page">
       <Sidebar />
+      <h5> Twist tastes to create a song list!</h5>
       <TasteTwist />
     </div>
   );
