@@ -311,7 +311,18 @@ const Profile = () => {
                     </li>
                   ))}
               </ul>
-            </div>
+             
+            <input
+              type="text"
+              placeholder="Enter username"
+              value={newFriend}
+              onChange={(e) => setNewFriend(e.target.value)}
+            />
+            <button onClick={handleSendRequest} 
+            className="send-request-button"
+            >Send Request</button>
+          </div>
+            
           )}
 
           {activeTab === 'sent' && (
@@ -325,7 +336,18 @@ const Profile = () => {
                   </li>
                 ))}
               </ul>
-            </div>
+          
+            <input
+              type="text"
+              placeholder="Enter username"
+              value={newFriend}
+              onChange={(e) => setNewFriend(e.target.value)}
+            />
+            <button onClick={handleSendRequest} 
+            className="send-request-button"
+            >Send Request</button>
+          </div>
+            
           )}
 
           {activeTab === 'blocked' && (
@@ -345,17 +367,7 @@ const Profile = () => {
             </div>
           )}
 
-          <div className="profile-section">
-            <input
-              type="text"
-              placeholder="Enter username"
-              value={newFriend}
-              onChange={(e) => setNewFriend(e.target.value)}
-            />
-            <button onClick={handleSendRequest} 
-            className="send-request-button"
-            >Send Request</button>
-          </div>
+          
         </div>
       </div>
 

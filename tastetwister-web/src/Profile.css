@@ -127,6 +127,7 @@ button {
 
 .friend-item {
   margin-right: 0px; /* Adjust the margin to your liking */
+  cursor: pointer;
 }
 
 .send-request-button {

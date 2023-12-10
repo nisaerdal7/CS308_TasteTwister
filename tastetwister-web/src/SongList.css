@@ -269,6 +269,7 @@
     flex-direction: column;
     margin-bottom: 15px; /* Adjust as needed */
     text-align: left; /* Left-align text */
+    cursor: pointer;
   }
   
   .song-title {
