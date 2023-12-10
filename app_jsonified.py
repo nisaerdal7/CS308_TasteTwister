@@ -1070,6 +1070,26 @@ def unblock_friend():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/blocked_friends', methods=['GET'])
+def view_blocked_friends():
+    # Retrieve token from the request headers
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    # Authenticate user based on the token
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Fetch blocked friends for the user
+    blocked_friends = user.blocked.all()
+
+    # Convert blocked friends to JSON format
+    blocked_friends_data = [{'username': friend.username} for friend in blocked_friends]
+
+    return jsonify(blocked_friends_data), 200
 
 # This section will create all tables in the database if they don't exist.
 with app.app_context():
