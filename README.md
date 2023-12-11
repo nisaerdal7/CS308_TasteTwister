@@ -137,6 +137,9 @@ Headers:
 ## ER Diagram
 ![image](https://github.com/nisaerdal7/CS308_TasteTwister/assets/76566903/13d3a4b5-9e25-462a-b72d-6de278c9c0ec)
 
+## Sequence Diagram for Spotify API Integration
+![image](https://github.com/nisaerdal7/CS308_TasteTwister/assets/76566903/bd18fc85-5cbd-45a9-ab9b-b1c89c413d8b)
+
 
 
 ## MVP Features
