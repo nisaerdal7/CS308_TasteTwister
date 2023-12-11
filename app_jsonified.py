@@ -1011,12 +1011,6 @@ def mean_stats():
         'daily_average_ratings': daily_avg_ratings
     }), 200
 
-if __name__ == '__main__':
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-    app.run(debug=True)
-
-
 @app.route('/block_friend', methods=['POST'])
 def block_friend():
     data = request.json
@@ -1094,3 +1088,8 @@ def view_blocked_friends():
 # This section will create all tables in the database if they don't exist.
 with app.app_context():
     db.create_all()
+    
+if __name__ == '__main__':
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+    app.run(debug=True)
