@@ -230,37 +230,42 @@ const Profile = () => {
 
 
 
-  return (
-    <div className="profile-container">
-      <Sidebar />
-      <div className="left-widget">
-        <div className="profile-box">
-          <div className="profile-header">
-            <img src={myProfileIcon} alt="Profile Icon" className="my-profile-icon" />
-            <h2>{username}'s Friends</h2>
-          </div>
+      return (
+        <div className="profile-container">
+          <Sidebar />
+          <div className="left-widget">
+            <div className="profile-box">
+              <div className="profile-header">
+                <img src={myProfileIcon} alt="Profile Icon" className="my-profile-icon" />
+                <h2>{username}'s Friends</h2>
+              </div>
 
-          <div className="profile-section">
-            <ul>
-              {friendsList.map((friend) => (
-                <li key={friend} className="friend-item">
-                  {friend}
-                  <span
-                    className="remove-icon"
-                    onClick={() => handleRemoveFriendClick(friend)}
-                  >
-                    ❌
-                  </span>
-                  <span
-                    className="block-icon"
-                    onClick={() => handleBlockFriendClick(friend)}
-                  >
-                    🚫
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
+              <div className="profile-section">
+      <ul>
+        {friendsList.map((friend) => (
+          <li key={friend} className="friend-item">
+            {friend}
+            <div className="friend-options">
+              <span
+                className="remove-icon"
+                onClick={() => handleRemoveFriendClick(friend)}
+              >
+                ❌  
+              </span>
+              <span
+            className="icon-space" // Add a class for spacing
+          />
+              <span
+                className="block-icon"
+                onClick={() => handleBlockFriendClick(friend)}
+              >
+                🚫  
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
         </div>
       </div>
 

@@ -663,23 +663,23 @@ function SongList() {
             X
           </button>
           <div className="rating-popup" style={{ background: 'black', color: 'gray', display: 'flex', flexDirection: 'column' }}>
-            <select
-              value={selectedAddRating}
-              onChange={(e) => setSelectedAddRating(e.target.value)}
-              style={{ background: 'black', color: 'rgb(160, 160, 160)' }}
-            >
-              <option value="">Select rating</option>
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-            </select>
+          <select
+        className="ratinge-select"
+        value={selectedAddRating}
+        onChange={(e) => setSelectedAddRating(e.target.value)}
+      >
+        <option value="" >Select Rating</option>
+        {[1, 2, 3, 4, 5].map((ratinge) => (
+          <option key={ratinge} value={ratinge}>
+            {ratinge}
+          </option>
+        ))}
+      </select>
             <button
               onClick={handleSongAndRatingSubmit}
               style={{ background: '#329374', color: '#fff' }}
             >
-              Submit Rating
+              Submit 
             </button>
           </div>
         </div>
