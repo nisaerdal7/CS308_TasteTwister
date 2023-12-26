@@ -7,28 +7,17 @@ import backIcon from './images/back-icon.png';
 
 function TasteTwist() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [isPopupVisible, setPopupVisible] = useState(false);
   const [playlist, setPlaylist] = useState([]);
 
   const [friendPopupVisible, setFriendPopupVisible] = useState(false);
   const [friendUsername, setFriendUsername] = useState('');
 
   const showFriendPopup = () => {
-    hidePopup();
     setFriendPopupVisible(true);
   };
 
   const hideFriendPopup = () => {
     setFriendPopupVisible(false);
-  };
-
-  const showPopup = () => {
-    hideFriendPopup();
-    setPopupVisible(true);
-  };
-
-  const hidePopup = () => {
-    setPopupVisible(false);
   };
 
   const SaveSong = (song) => {
@@ -62,8 +51,6 @@ function TasteTwist() {
         const storedToken = localStorage.getItem('token');
         console.log(storedToken);
       
-
-      hidePopup();
   
       // Make a request to your Flask backend
       const response = await fetch('http://127.0.0.1:5000/recommend_playlist_all_users', {
@@ -100,8 +87,6 @@ function TasteTwist() {
         const storedToken = localStorage.getItem('token');
         console.log(storedToken);
       
-
-      hidePopup();
   
       // Make a request to your Flask backend
       const response = await fetch('http://127.0.0.1:5000/recommend_playlist_from_all_friends', {
@@ -182,7 +167,19 @@ function TasteTwist() {
   );
 
   return (
+    
     <div className="taste-twist-container">
+    <div className="button-container">
+      <button className="buttonList" onClick={submitTasteTwistUsers}>
+        All users!
+      </button>
+      <button className="buttonList" onClick={submitTasteTwistFriends}>
+        All friends!
+      </button>
+      <button className="buttonList" onClick={showFriendPopup}>
+        Specific friend...
+      </button>
+    </div>
     <div className="twist-search-bar">
     <input
         type="text"
@@ -190,9 +187,6 @@ function TasteTwist() {
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
     />
-    <button className="create-button" onClick={showPopup}>
-        <img src={twistIcon} alt="Twist Icon" style={{ width: '22px', height: '22px' }} />
-    </button>
     </div>
 
     <div className="taste-twist-list">
@@ -230,40 +224,10 @@ function TasteTwist() {
     </table>
     </div>
 
-      {isPopupVisible && (
-        <div className="popup">
-          <button className="close-button" onClick={hidePopup}>
-            X
-          </button>
-          {/* Content for creating TasteTwist */}
-          <div className="create-taste-twist-container">
-            {/* Add your input fields and submit button for TasteTwist creation */}
-            <button className = "create-all-user-button" onClick={submitTasteTwistUsers}>
-                All users!
-                </button>
-                <br />
-            <button className= "create-all-friends-button" onClick={submitTasteTwistFriends}>
-              All friends!
-            </button>
-            <br />
-            <button className="create-specific-friend-button" onClick={showFriendPopup}>
-              Specific friend...
-            </button>
-          </div>
-        </div>
-      )}
-
     {friendPopupVisible && (
             <div className="friend-popup">
             <button className="close-button" onClick={hideFriendPopup}>
             X
-          </button>
-          <button className="back-button" onClick={showPopup}>
-          <img
-            src={backIcon}
-            alt="Back Icon"
-            style={{ width: '13px', height: '13px' }} // Adjust the size as needed
-          />
           </button>
             <input
                 type="text"
