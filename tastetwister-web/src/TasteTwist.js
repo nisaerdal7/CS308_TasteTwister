@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import './TasteTwist.css'; // Updated import
 import saveIcon from './images/save-icon.png';
-import twistIcon from './images/twisticon.png';
-import backIcon from './images/back-icon.png';
 
 
 function TasteTwist() {
   const [searchTerm, setSearchTerm] = useState('');
   const [playlist, setPlaylist] = useState([]);
+  const [showUsername, setShowUsername] = useState(false); // New state variable
 
   const [friendPopupVisible, setFriendPopupVisible] = useState(false);
   const [friendUsername, setFriendUsername] = useState('');
@@ -73,7 +72,7 @@ function TasteTwist() {
 
         // Update the state with the fetched playlist
         setPlaylist(fetchedPlaylist);
-      
+        setShowUsername(false);
     } catch (error) {
       console.error('Error:', error.message);
       // Handle error as needed
@@ -109,6 +108,7 @@ function TasteTwist() {
 
         // Update the state with the fetched playlist
         setPlaylist(fetchedPlaylist);
+        setShowUsername(true);
       
     } catch (error) {
       console.error('Error:', error.message);
@@ -152,6 +152,7 @@ function TasteTwist() {
   
       // Update the state with the fetched playlist
       setPlaylist(fetchedPlaylist);
+      setShowUsername(false);
   
     } catch (error) {
       console.error('Error:', error.message);
@@ -204,10 +205,12 @@ function TasteTwist() {
         <tr key={index}>
             <td className="twist-title-column">
                 {song.track_name}
-                <div className="loves-text">liked by {' '}
-                <span className="twist-username">
-                {song.username} </span>
-            </div>
+                {showUsername && ( // Conditionally render the username
+                    <div className="loves-text">
+                      liked by{' '}
+                      <span className="twist-username">{song.username}</span>
+                    </div>
+                  )}
             </td>
             <td className="twist-artist-column">{song.performer}</td>
             <td className="twist-album-column">{song.album}</td>
