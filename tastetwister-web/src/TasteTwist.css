@@ -9,6 +9,16 @@
   overflow-y: auto; /* Change overflow property to auto */
   background-color: rgba(0, 0, 0, 0.4);
 }
+
+.twist-username {
+  font-size: 11px; /* Adjust font size as needed */
+  color: rgb(198, 198, 198); /* Adjust color as needed */
+}
+
+.loves-text {
+  font-size: 11px; 
+  color: rgb(160, 160, 160); /* Your desired color */
+}
   
 .button-container {
   margin-top: 3px;

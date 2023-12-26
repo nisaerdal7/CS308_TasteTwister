@@ -201,25 +201,31 @@ function TasteTwist() {
         </thead>
         <tbody>
         {filteredSongs.map((song, index) => (
-            <tr key={index}>
-            <td className="twist-title-column">{song.track_name}</td>
+        <tr key={index}>
+            <td className="twist-title-column">
+                {song.track_name}
+                <div className="loves-text">liked by {' '}
+                <span className="twist-username">
+                {song.username} </span>
+            </div>
+            </td>
             <td className="twist-artist-column">{song.performer}</td>
             <td className="twist-album-column">{song.album}</td>
             <td className="twist-saved-column">
                 <span
-                onClick={() => SaveSong(song)} // Call a function for edit action
-                style={{ cursor: 'pointer', marginLeft: '45px' }}
+                    onClick={() => SaveSong(song)}
+                    style={{ cursor: 'pointer', marginLeft: '45px' }}
                 >
-                <img
-                    src={saveIcon}
-                    alt="Save Icon"
-                    onClick={() => console.log(song)}
-                    style={{ width: '22px', height: '22px' }} // Adjust the size as needed
-                />
+                    <img
+                        src={saveIcon}
+                        alt="Save Icon"
+                        onClick={() => console.log(song)}
+                        style={{ width: '22px', height: '22px' }}
+                    />
                 </span>
             </td>
-            </tr>
-        ))}
+        </tr>
+    ))}
         </tbody>
     </table>
     </div>
