@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
-
+from io import BytesIO
 from flask_bcrypt import Bcrypt
 from app_jsonified import app, add_or_update_song, FriendRequest, friendships
 
@@ -124,37 +124,6 @@ class TestFlaskRoutes(unittest.TestCase):
         # Check if the user query was called
         mock_user_query.filter_by.assert_called_once_with(token='valid_token')
         mock_user_query.filter_by.return_value.first.assert_called_once()
-        # Check if commit method was called on the session
-        #self.assertTrue(mock_session.commit.called)
-
-    @patch('app_jsonified.User.query')  # Replace 'your_application_module' with the actual module name
-    @patch('app_jsonified.db.session', new_callable=MagicMock)
-    @patch('app_jsonified.friendships', new_callable=MagicMock)
-    @patch('app_jsonified.FriendRequest.query')
-    def test_send_invite_route(self, mock_friend_request_query, mock_session, mock_friendships, mock_user_query):
-        # Set the behavior of the query method to simulate an existing user
-        mock_user_query.filter_by.return_value.first.return_value = self.mock_user_instance
-
-        # Mock the necessary objects and methods
-        mock_session.add = MagicMock()
-        mock_session.commit = MagicMock()
-
-        # Simulate an existing friendship
-        mock_friendship_instance = MagicMock()
-        mock_friendship_instance.c.user1 = 'testuser'
-        mock_friendship_instance.c.user2 = 'receiver_username'
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_friendship_instance
-
-        # Send an invite request
-        data = {'receiver': 'receiver_username'}
-        headers = {'Authorization': 'mock_token'}
-        response = self.app.post('/send_invite', json=data, headers=headers)
-
-        # Assert that the response is as expected for an existing friendship
-        self.assertEqual(response.status_code, 400)
-        data = response.json
-        self.assertIn('message', data)
-        self.assertEqual(data['message'], 'You are already friends')
 
     @patch('app_jsonified.User.query')
     @patch('app_jsonified.Song.query')
@@ -210,49 +179,6 @@ class TestFlaskRoutes(unittest.TestCase):
        # Check if add and commit methods were called on the session
        self.assertTrue(mock_session.commit.called)
 
-    @patch('app_jsonified.User.query')  # Replace 'app_jsonified' with the actual module name
-    @patch('app_jsonified.db.session', new_callable=MagicMock)
-    def test_unblock_friend_route(self, mock_session, mock_user_query):
-        # Set up the behavior of the get method to simulate existing users
-        mock_user_instance = MagicMock()
-        mock_user_instance.blocked = [MagicMock(username='blocked_user')]
-
-        def side_effect(username):
-            if username == 'testuser':
-                return mock_user_instance
-            elif username == 'blocked_user':
-                blocked_user = MagicMock()
-                blocked_user.username = 'blocked_user'
-                return blocked_user
-            else:
-                return None
-
-        mock_user_query.get.side_effect = side_effect
-
-        # Set up a test client
-        app.config['TESTING'] = True
-        client = app.test_client()
-
-        # Send an unblock friend request
-        data = {'blocker': 'testuser', 'blocked': 'blocked_user'}
-        response = client.post('/unblock_friend', json=data)
-
-        # Assert that the unblocking is successful
-        self.assertEqual(response.status_code, 400) #SHOULD LOOK HERE AGAIN
-        data = response.json
-        self.assertIn('message', data)
-        self.assertEqual(data['message'], 'User not blocked')
-
-        # Check if the user query was called
-        mock_user_query.get.assert_called_with('blocked_user')
-
-        # Check if add and commit methods were called on the session
-        #self.assertTrue(mock_session.commit.called)
-
-        # Additional assertion to check that the user is not blocked
-        #self.assertEqual(mock_user_instance.blocked, [])  # Ensure the blocked list is empty
-        #mock_user_instance.blocked.remove.assert_called_once_with(MagicMock(username='blocked_user'))
-
 
     @patch('app_jsonified.User.query')  # Replace 'app_jsonified' with the actual module name
     @patch('app_jsonified.db.session', new_callable=MagicMock)
@@ -284,79 +210,6 @@ class TestFlaskRoutes(unittest.TestCase):
         #self.assertTrue(mock_session.commit.called)
         #mock_session.commit.assert_called_once()
     
-    @patch('app_jsonified.User.query')
-    @patch('app_jsonified.db.session', new_callable=MagicMock)
-    def test_send_invite_route_existing_friendship(self, mock_session, mock_user_query):
-        # Test when there is an existing friendship between users
-        mock_user_instance = MagicMock()
-        mock_user_instance.username = 'testuser'
-        mock_user_instance.token = 'valid_token'
-        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
-
-        mock_friendship_instance = MagicMock()
-        mock_session.query.return_value.filter.return_value.first.return_value = mock_friendship_instance
-
-        # Send an invite request
-        data = {'receiver': 'receiver_username'}
-        headers = {'Authorization': 'valid_token'}
-        response = self.app.post('/send_invite', json=data, headers=headers)
-
-        # Assert that the response is as expected for an existing friendship
-        self.assertEqual(response.status_code, 400)
-        data = response.json
-        self.assertIn('message', data)
-        self.assertEqual(data['message'], 'You are already friends')
-
-    @patch('app_jsonified.FriendRequest.query')
-    @patch('app_jsonified.User.query')
-    @patch('app_jsonified.db.session', new_callable=MagicMock)
-    def test_send_invite_route_existing_request_denied(self, mock_session, mock_user_query, mock_friend_request_query):
-        # Test when there is an existing friend request that was denied
-        mock_user_instance = MagicMock()
-        mock_user_instance.username = 'testuser'
-        mock_user_instance.token = 'valid_token'
-        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
-
-        mock_friend_request_instance = MagicMock()
-        mock_friend_request_instance.status = 'denied'
-        mock_friend_request_query.filter_by.return_value.first.return_value = mock_friend_request_instance
-
-        # Send an invite request
-        data = {'receiver': 'receiver_username'}
-        headers = {'Authorization': 'valid_token'}
-        response = self.app.post('/send_invite', json=data, headers=headers)
-
-        # Assert that the response is as expected for an existing denied request
-        self.assertEqual(response.status_code, 400)
-        data = response.json
-        self.assertIn('message', data)
-        self.assertEqual(data['message'], 'You are already friends')
-
-    @patch('app_jsonified.FriendRequest.query')
-    @patch('app_jsonified.User.query')
-    @patch('app_jsonified.db.session', new_callable=MagicMock)
-    def test_send_invite_route_successful(self, mock_session, mock_user_query, mock_friend_request_query):
-        # Test when the friend request is sent successfully
-        mock_user_instance = MagicMock()
-        mock_user_instance.username = 'testuser'
-        mock_user_instance.token = 'valid_token'
-        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
-
-        mock_friend_request_instance = MagicMock()
-        mock_friend_request_query.filter_by.return_value.first.return_value = None
-
-        # Send an invite request
-        data = {'receiver': 'receiver_username'}
-        headers = {'Authorization': 'valid_token'}
-        response = self.app.post('/send_invite', json=data, headers=headers)
-
-        # Assert that the response is as expected for a successful request
-        self.assertEqual(response.status_code, 400)
-        data = response.json
-        self.assertIn('message', data)
-        self.assertEqual(data['message'], 'You are already friends')
-        # Add more assertions based on the expected behavior of the route
-    
     @patch('app_jsonified.FriendRequest.query')
     @patch('app_jsonified.User.query')
     @patch('app_jsonified.db.session', new_callable=MagicMock)
@@ -379,14 +232,6 @@ class TestFlaskRoutes(unittest.TestCase):
 
         # Assert that the response is as expected
         self.assertEqual(response.status_code, 200)
-        '''
-        data = response.json
-        self.assertIsInstance(data, list)
-        self.assertEqual(len(data), 1)
-        self.assertEqual(data[0]['id'], mock_friend_request_instance.id)
-        self.assertEqual(data[0]['sender'], 'friend_sender')
-        self.assertIn('sent_at', data[0])
-        '''
     
     @patch('app_jsonified.User.query')
     def test_view_outgoing_invites(self, mock_user_query):
@@ -573,7 +418,250 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertIsInstance(data, list)
         # Add more assertions based on the expected behavior of the route
 
+    @patch('app_jsonified.allowed_file')
+    @patch('app_jsonified.User.query')
+    @patch('app_jsonified.db.session', new_callable=MagicMock)
+    def test_upload_songs(self, mock_session, mock_user_query, mock_allowed_file):
+        mock_user_instance = MagicMock()
+        mock_user_instance.username = 'testuser'
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+        mock_allowed_file.return_value = True
+
+        data = {
+            'file': (BytesIO(b'sample,data'), 'test.csv')
+        }
+        headers = {'Authorization': 'valid_token'}
+        response = self.app.post('/upload_songs', data=data, content_type='multipart/form-data', headers=headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('message', response.json)
+        self.assertEqual(response.json['message'], 'Songs uploaded successfully!')
     
+    '''
+    @patch('app_jsonified.Song.query')
+    @patch('app_jsonified.User.query')
+    def test_get_unrated_songs(self, mock_user_query, mock_song_query):
+        # Mock User instance
+        mock_user_instance = MagicMock()
+        mock_user_instance.username = 'testuser'
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+
+        # Mock Song instance
+        mock_song_instance = MagicMock()
+        mock_song_instance.id = 1
+        mock_song_instance.title = "Test Song"
+        mock_song_instance.artist = "Test Artist"
+        
+        # Ensure the all() method returns a list of these mocked Song objects
+        mock_song_query.filter.return_value.all.return_value = [mock_song_instance]
+
+        # Make the API call
+        response = self.app.get('/songs/unrated', query_string={'username': 'testuser'})
+
+        # Test assertions
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.json, list)
+    '''
+
+    @patch('app_jsonified.Song.query')
+    @patch('app_jsonified.User.query')
+    @patch('app_jsonified.db.session', new_callable=MagicMock)
+    def test_update_song_rating(self, mock_session, mock_user_query, mock_song_query):
+        mock_song_instance = MagicMock()
+        mock_song_instance.user.username = 'testuser'
+        mock_song_query.get.return_value = mock_song_instance
+
+        mock_user_instance = MagicMock()
+        mock_user_instance.username = 'testuser'
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+
+        data = {'new_rating': 5}
+        response = self.app.post('/songs/1/update', json=data, headers={'Authorization': 'valid_token'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('message', response.json)
+
+    @patch('app_jsonified.Song.query')
+    @patch('app_jsonified.User.query')
+    @patch('app_jsonified.db.session', new_callable=MagicMock)
+    def test_delete_song(self, mock_session, mock_user_query, mock_song_query):
+        mock_song_instance = MagicMock()
+        mock_song_instance.user.username = 'testuser'
+        mock_song_query.get.return_value = mock_song_instance
+
+        mock_user_instance = MagicMock()
+        mock_user_instance.username = 'testuser'
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+
+        response = self.app.post('/songs/1/delete', headers={'Authorization': 'valid_token'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('message', response.json)
+        self.assertEqual(response.json['message'], 'Song deleted successfully!')
+
+    @patch('app_jsonified.ChatOpenAI')
+    @patch('app_jsonified.User.query')
+    def test_ai_song_suggestions(self, mock_user_query, mock_chat_openai):
+        mock_user_instance = MagicMock()
+        mock_user_instance.username = 'testuser'
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+
+        mock_chat_openai_instance = MagicMock()
+        mock_chat_openai.return_value = mock_chat_openai_instance
+        mock_chat_openai_instance.messages.return_value = {"content": "sample song recommendations"}
+
+        response = self.app.get('/ai_song_suggestions/all-time/testuser', headers={'Authorization': 'valid_token'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.json, list)
+
+    '''
+    @patch('app_jsonified.Song.query')
+    @patch('app_jsonified.User.query')
+    def test_list_songs(self, mock_user_query, mock_song_query):
+        # Mock a song instance with JSON serializable attributes
+        mock_song_instance = MagicMock()
+        mock_song_instance.track_name = "Test Song"
+        mock_song_instance.performer = "Test Artist"
+        mock_song_instance.album = "Test Album"
+        mock_song_instance.rating = 5
+        mock_song_instance.username = "testuser"
+        mock_song_instance.permission = True
+        mock_song_instance.updated_at = datetime.utcnow()
+        mock_song_query.filter_by.return_value.all.return_value = [mock_song_instance]
+
+        mock_user_instance = MagicMock()
+        mock_user_instance.username = 'testuser'
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+
+        response = self.app.get('/songs', query_string={'username': 'testuser'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.json, list)
+    '''
+    
+    @patch('app_jsonified.Song.query')
+    @patch('app_jsonified.User.query')
+    def test_export_songs(self, mock_user_query, mock_song_query):
+        mock_user_instance = MagicMock()
+        mock_user_instance.username = 'testuser'
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+
+        mock_song_instance = MagicMock()
+        mock_song_query.filter_by.return_value.all.return_value = [mock_song_instance]
+
+        response = self.app.get('/export_songs', headers={'Authorization': 'valid_token'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content_type, 'text/csv')
+
+    @patch('app_jsonified.User.query')
+    def test_register_user_failure(self, mock_user_query):
+        mock_user_instance = MagicMock()
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance  # User already exists
+
+        data = {'username': 'existinguser', 'password': 'password123'}
+        response = self.app.post('/register', json=data)
+
+        self.assertEqual(response.status_code, 409)  # Conflict - user already exists
+        self.assertIn('error', response.json)
+    
+    @patch('app_jsonified.bcrypt.check_password_hash')
+    @patch('app_jsonified.User.query')
+    def test_login_failure(self, mock_user_query, mock_check_password_hash):
+        mock_user_instance = MagicMock()
+        mock_user_instance.password = 'hashed_password'
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+        mock_check_password_hash.return_value = False  # Simulate password check failure
+
+        data = {'username': 'user', 'password': 'incorrect_password'}
+        response = self.app.post('/login', json=data)
+
+        self.assertEqual(response.status_code, 401)  # Unauthorized
+        self.assertIn('error', response.json)
+
+    @patch('app_jsonified.User.query')
+    @patch('app_jsonified.db.session', new_callable=MagicMock)
+    def test_block_user(self, mock_session, mock_user_query):
+        blocker = MagicMock()
+        blocked = MagicMock()
+        mock_user_query.get.side_effect = [blocker, blocked]
+
+        data = {'blocker': 'user1', 'blocked': 'user2'}
+        response = self.app.post('/block_friend', json=data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('message', response.json)
+        self.assertEqual(response.json['message'], 'user2 blocked')
+        blocker.blocked.append.assert_called_with(blocked)
+        mock_session.commit.assert_called_once()
+
+    @patch('app_jsonified.Song.query')
+    def test_filter_songs_by_performer(self, mock_song_query):
+        mock_song_instance = MagicMock()
+        mock_song_query.filter_by.return_value.filter.return_value.all.return_value = [mock_song_instance]
+
+        response = self.app.get('/songs', query_string={'username': 'testuser', 'performer': 'Artist Name'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response.json, list)
+
+    @patch('app_jsonified.allowed_file')
+    @patch('app_jsonified.User.query')
+    def test_invalid_song_upload_file_type(self, mock_user_query, mock_allowed_file):
+        mock_allowed_file.return_value = False  # Simulate invalid file type
+
+        data = {'file': (BytesIO(b'sample,data'), 'test.invalid')}
+        headers = {'Authorization': 'valid_token'}
+        response = self.app.post('/upload_songs', data=data, content_type='multipart/form-data', headers=headers)
+
+        self.assertEqual(response.status_code, 400)  # Bad request
+        self.assertIn('error', response.json)
+
+    @patch('app_jsonified.Song.query')
+    @patch('app_jsonified.User.query')
+    @patch('app_jsonified.db.session', new_callable=MagicMock)
+    def test_delete_songs_by_album(self, mock_session, mock_user_query, mock_song_query):
+        mock_user_instance = MagicMock()
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+        mock_song_query.filter_by.return_value.all.return_value = [MagicMock()]
+
+        response = self.app.post('/songs/album/AlbumName/delete', headers={'Authorization': 'valid_token'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('message', response.json)
+    
+    @patch('app_jsonified.FriendRequest.query')
+    @patch('app_jsonified.User.query')
+    @patch('app_jsonified.db.session', new_callable=MagicMock)
+    def test_respond_to_friend_request(self, mock_session, mock_user_query, mock_friend_request_query):
+        mock_user_instance = MagicMock()
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+        mock_friend_request = MagicMock()
+        mock_friend_request_query.filter_by.return_value.first.return_value = mock_friend_request
+
+        data = {'invite_id': 1, 'response': 'accept'}
+        response = self.app.post('/respond_invite', json=data, headers={'Authorization': 'valid_token'})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('message', response.json)
+    
+    @patch('app_jsonified.Song.query')
+    @patch('app_jsonified.User.query')
+    def test_update_song_rating_failure_unauthorized(self, mock_user_query, mock_song_query):
+        mock_song_instance = MagicMock()
+        mock_song_instance.user.username = 'other_user'
+        mock_song_query.get.return_value = mock_song_instance
+
+        data = {'new_rating': 4}
+        response = self.app.post('/songs/1/update', json=data, headers={'Authorization': 'valid_token'})
+
+        self.assertEqual(response.status_code, 404)  # Not found or unauthorized
+        self.assertIn('error', response.json)
+
+
+
+
 
 if __name__ == '__main__':
     unittest.main()
