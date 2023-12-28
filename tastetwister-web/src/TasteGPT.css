@@ -1,0 +1,133 @@
+.taste-gpt-container {
+    width: 900px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    margin: 0 auto;
+    border-radius: 8px;
+    max-height: 500px;
+    overflow-y: auto; /* Change overflow property to auto */
+    background-color: rgba(0, 0, 0, 0.4);
+  }
+    
+  .gpt-button-container {
+    margin-top: 3px;
+    margin-bottom: 20px; /* Add some top margin to create space */
+  }
+  
+  .gpt-search-bar {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+    
+  .gpt-search-bar input {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    background-color: transparent;
+    color: #fff;
+  }
+   
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    border-radius: 8px;
+    margin: 0; /* Remove default margin */
+  }
+  
+  
+  
+  .gpt-submit-button{
+    margin: 10px;
+    padding: 10px 15px;
+    background-color: #329374;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  
+  
+  th {
+    padding: 10px;
+    border: none; /* Remove borders around th elements */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid rgb(160, 160, 160, 0.3); /* Add a bottom border to th elements */
+  }
+  
+  td {
+    padding: 10px;
+    border: none; /* Remove borders around td elements */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .gpt-title-column {
+    width: 40%;
+    text-align: left;
+    color: rgb(160, 160, 160);
+  }
+  
+  .gpt-artist-column {
+    width: 30%;
+    text-align: left;
+    color: rgb(160, 160, 160);
+  }
+  
+  .gpt-album-column {
+    width: 30%;
+    text-align: left;
+    color: rgb(160, 160, 160);
+  }
+  
+  .gpt-saved-column {
+    width: 12%;
+    text-align: left;
+    color: rgb(160, 160, 160);
+  }
+  
+  .column,
+  
+  tbody tr:nth-child(odd) {
+    background-color: rgba(0, 0, 0, 0.5);
+  }
+  
+  tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+  
+  .taste-gpt-list table {
+    table-layout: fixed;
+  }
+  
+  .taste-gpt-list td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .gpt-dropdown {
+  padding: 5px;
+  margin-right: 20px;
+  margin-bottom: 5px;
+  border: none;
+  border-radius: 8px;
+  font-size: 17px;
+  color: #fff;
+  background-color: rgba(0, 0, 0, 0.7);
+  
+  }
+  
+  .black-transparent-background {
+    background-color: rgba(0, 0, 0, 0.7);
+  }

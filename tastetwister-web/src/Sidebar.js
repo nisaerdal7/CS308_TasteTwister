@@ -37,6 +37,7 @@ function Sidebar() {
       <a href='/home'><img src={homeIcon} alt="Home Icon" className="icon"/>Home</a>
       <a href='/profile'><img src={profileIcon} alt="Profile Icon" className="profile-icon" />  My Profile</a>
       <a href='/tasteit'><img src={twistIcon} alt="Twist Icon" className="icon"/>TasteTwist!</a>
+      <a href='/tastegpt'><img src={twistIcon} alt="Twist Icon" className="icon"/>TasteGPT</a>
       <a href='/rateitpage'><img src={heartIcon} alt="Heart Icon" className="icon"/>Rate It!</a>
       <a href='/statistics'><img src={statisticsIcon} alt="Statistics Icon" className="icon"/>Statistics</a>
       {/* Add more links as needed */}

@@ -9,7 +9,7 @@ import RateItPage from './RateItPage';
 import StatisticsPage from './StatisticsPage';
 import {BrowserRouter, Route, Routes } from 'react-router-dom';
 import TasteTwistPage from './TasteTwistPage';
-
+import TasteGPTPage from './TasteGPTPage';
 ReactDOM.render(
   
   <BrowserRouter>
@@ -22,6 +22,7 @@ ReactDOM.render(
         <Route exact path="/" element={<LoginForm />} />
         <Route exact path="/profile" element={<Profile />} />
         <Route exact path="/tasteit" element={<TasteTwistPage />} />
+        <Route exact path="/tastegpt" element={<TasteGPTPage />} />
         <Route exact path="/statistics" element={<StatisticsPage />} />
         </Routes>
     

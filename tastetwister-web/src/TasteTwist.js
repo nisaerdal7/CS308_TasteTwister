@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './TasteTwist.css'; // Updated import
 import saveIcon from './images/save-icon.png';
-import twistIcon from './images/twisticon.png';
-import backIcon from './images/back-icon.png';
+
 
 
 function TasteTwist() {
