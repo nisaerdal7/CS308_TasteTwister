@@ -8,7 +8,7 @@ function TasteGPTPage() {
   return (
     <div className="taste-gpt-page">
       <Sidebar />
-      <h5> Generate specific recommendations with your preferred genre or era with GPT!</h5>
+      <h5> Generate specific recommendations with GPT!</h5>
       <TasteGPT />
     </div>
   );

@@ -27,7 +27,7 @@
     }
     .taste-gpt-page h5 {
       background-color: rgba(0, 0, 0, 0.7); /* Black with 70% transparency */
-      color: rgb(160, 160, 160);/* Text color */
+      color: #fff;/* Text color */
       padding: 10px; /* Add padding for better visibility */
     }
     

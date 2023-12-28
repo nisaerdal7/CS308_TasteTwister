@@ -7,7 +7,7 @@
     border-radius: 8px;
     max-height: 500px;
     overflow-y: auto; /* Change overflow property to auto */
-    background-color: rgba(0, 0, 0, 0.4);
+    background-color: rgba(0, 0, 0, 0.548);
   }
     
   .gpt-button-container {
@@ -131,3 +131,7 @@
   .black-transparent-background {
     background-color: rgba(0, 0, 0, 0.7);
   }
+  .tab-container {
+    display: flex;
+  }
+  

@@ -17,6 +17,12 @@ import spotifysearch
 from spotifysearch.client import Client
 from datetime import datetime, timedelta
 import random
+import os
+import openai
+from dotenv import load_dotenv, find_dotenv
+from langchain.chat_models import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 
 
 app = Flask(__name__)
@@ -36,6 +42,15 @@ SPOTIFY_CLIENT_ID = "8a9fb2659bdb46d6815580ec3ff4d2c6"
 SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
 
 db = SQLAlchemy(app)
+
+# Load environment variables
+load_dotenv(find_dotenv())
+openai.api_key = os.environ["OPENAI_API_KEY"]
+
+# Initialize the Chat model
+chat = ChatOpenAI(temperature=0.9, model="gpt-3.5-turbo")
+
+
 
 friendships = db.Table('friendships',
     db.Column('user1', db.String(255), db.ForeignKey('users.username'), primary_key=True),
@@ -944,7 +959,7 @@ def user_stats(username):
     # Top 10 albums
     top_albums = get_top_albums_or_performers(songs_query, Song.album)
     top_albums_data = [{'album': album[0], 'average_rating': album[1]} for album in top_albums]
- 
+
     # Top 10 performers
     top_performers = get_top_albums_or_performers(songs_query, Song.performer)
     top_performers_data = [{'performer': performer[0], 'average_rating': performer[1]} for performer in top_performers]
@@ -987,8 +1002,7 @@ def get_filtered_songs_stats(query, timeframe, username, filter_by=None, filter_
 
     daily_avg_ratings = {}
     for row in grouped_query.all():
-        if(row.avg_rating):
-            daily_avg_ratings[row.date.isoformat()] = float(row.avg_rating)
+        daily_avg_ratings[row.date.isoformat()] = float(row.avg_rating)
 
     # Overall mean rating for the timeframe
     mean_rating = query.with_entities(func.avg(Song.rating)).scalar()
@@ -1086,14 +1100,180 @@ def view_blocked_friends():
     blocked_friends_data = [{'username': friend.username} for friend in blocked_friends]
 
     return jsonify(blocked_friends_data), 200
-    
-if __name__ == '__main__':
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
-    app.run(debug=True)
+
+
+# Function to process the user input into the required format
+def process_user_input(user_input):
+    songs = user_input.split("\n")
+    formatted_songs = "\n".join([f"- {song}" for song in songs])
+    return formatted_songs
+
+# Template for processing the list of songs
+song_suggestion_template = """
+Given the following list of songs, suggest 20 unique and creative songs that the user might enjoy. 
+The suggestions can be from an artist not already mentioned and should offer a fresh perspective or unique style that could appeal to a fan of the listed songs. 
+Consider less mainstream options and focus on diverse musical elements like unique beats, instruments, or lyrical themes.
+Try to be as creative as possible, do not be repetitive.
+Be mindful of the genre of these songs, and try to keep your suggestion in that genre as well.
+
+Format the output as JSON with the strictly following keys: track_name, performer, album
+
+
+{example}
+
+User's favorite songs:
+{songs}
+"""
+
+example =  """
+
+Example format of return:
+
+{ "track_name": "Trouble", "performer": "Taylor Swift", "album": "Trouble" }
+
+{ "track_name": "Bad Boy", "performer": "Red Velvet", "album": "The Perfect Velvet" }
+
+"""
+
+
+@app.route('/ai_song_suggestions/all-time/<username>', methods=['GET'])
+@app.route('/ai_song_suggestions/last-7-days/<username>', methods=['GET'])
+@app.route('/ai_song_suggestions/last-24-hours/<username>', methods=['GET'])
+def ai_song_suggestions(username):
+    # Retrieve token from the request headers
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    # Authenticate user based on the token
+    authenticated_user = User.query.filter_by(token=token).first()
+    if not authenticated_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Check if the authenticated user is the same as the one in the URL
+    if authenticated_user.username != username:
+        return jsonify({'error': 'Unauthorized access'}), 403
+
+    # Determine the timeframe from the request path
+    timeframe = request.path.split('/')[2].replace('-', '_')
+
+    # Query for top 10 songs based on the timeframe for the user
+    songs_query = Song.query.filter_by(username=username)
+    songs_query = filter_songs_by_timeframe(songs_query, timeframe)
+    top_songs = (songs_query.order_by(Song.rating.desc())
+                 .limit(10)
+                 .all())
+
+    # Format the top songs for the LLM input
+    user_input = "\n".join([f"{song.track_name}, {song.performer}, {song.album}" for song in top_songs])
+    #formatted_songs = process_user_input(user_input)
+
+    # Creating the prompt message
+    prompt_template = ChatPromptTemplate.from_template(song_suggestion_template)
+    messages = prompt_template.format_messages(songs=user_input, example = example)
+
+    # Getting the response
+    response = chat(messages)
+
+    response_content = response.content
+
+    # Split the response into individual song strings
+    song_strings = response_content.split('\n')
+
+    # Parse each song string into a dictionary
+    songs_list = []
+    for song_str in song_strings:
+        try:
+            song_dict = json.loads(song_str)
+            songs_list.append(song_dict)
+        except json.JSONDecodeError:
+            # Handle the case where the string is not a valid JSON
+            continue
+
+    # Return the list of songs as a JSON response
+    return jsonify(songs_list)
+
+
+# Template for processing the list of songs with era and genre
+song_suggestion_era_genre_template = """
+Suggest 20 unique and creative songs that the user might enjoy. 
+The suggestions should reflect the musical styles and trends of the specified era and genre. 
+Focus on diverse musical elements unique to the era/genre like beats, instruments, or lyrical themes.
+The suggestions can be from artists known for their work in the specified era and genre.
+Be creative and avoid repetition.
+
+The suggested songs must be strictly from:
+{era}
+{genre}
+
+Format the output as JSON with the strictly following keys: track_name, performer, album
+
+Example format of return:
+
+{ "track_name": "Bohemian Rhapsody", "performer": "Queen", "album": "A Night at the Opera" }
+{ "track_name": "Purple Haze", "performer": "Jimi Hendrix", "album": "Are You Experienced" }
+
+"""
+
+@app.route('/ai_song_suggestions_by_era_genre/<username>', methods=['GET'])
+def ai_song_suggestions_by_era_genre(username):
+    era = request.args.get('era', default=None)
+    genre = request.args.get('genre', default=None)
+
+    if (era != None):
+        era += " Era"
+        
+    if (genre != None):
+        genre += " Genre"
+
+    # Retrieve token from the request headers
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    # Authenticate user based on the token
+    authenticated_user = User.query.filter_by(token=token).first()
+    if not authenticated_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Check if the authenticated user is the same as the one in the URL
+    if authenticated_user.username != username:
+        return jsonify({'error': 'Unauthorized access'}), 403
+
+    # Create the prompt with era and genre
+    prompt = song_suggestion_era_genre_template.format(era=era if era else "any", genre=genre if genre else "any genre")
+
+    # Get the response from the LLM
+    response = chat(prompt)
+
+    response_content = response.content
+
+    # Split the response into individual song strings
+    song_strings = response_content.split('\n')
+
+    # Parse each song string into a dictionary
+    songs_list = []
+    for song_str in song_strings:
+        try:
+            song_dict = json.loads(song_str)
+            songs_list.append(song_dict)
+        except json.JSONDecodeError:
+            # Handle the case where the string is not a valid JSON
+            continue
+
+    # Return the list of songs as a JSON response
+    return jsonify(songs_list)
+
+
+
 
 
 
 # This section will create all tables in the database if they don't exist.
 with app.app_context():
     db.create_all()
+    
+if __name__ == '__main__':
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
+    app.run(debug=True)
