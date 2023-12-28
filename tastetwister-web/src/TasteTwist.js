@@ -7,6 +7,7 @@ import saveIcon from './images/save-icon.png';
 function TasteTwist() {
   const [searchTerm, setSearchTerm] = useState('');
   const [playlist, setPlaylist] = useState([]);
+  const [showUsername, setShowUsername] = useState(false); // New state variable
 
   const [friendPopupVisible, setFriendPopupVisible] = useState(false);
   const [friendUsername, setFriendUsername] = useState('');
@@ -72,7 +73,7 @@ function TasteTwist() {
 
         // Update the state with the fetched playlist
         setPlaylist(fetchedPlaylist);
-      
+        setShowUsername(false);
     } catch (error) {
       console.error('Error:', error.message);
       // Handle error as needed
@@ -108,6 +109,7 @@ function TasteTwist() {
 
         // Update the state with the fetched playlist
         setPlaylist(fetchedPlaylist);
+        setShowUsername(true);
       
     } catch (error) {
       console.error('Error:', error.message);
@@ -151,6 +153,7 @@ function TasteTwist() {
   
       // Update the state with the fetched playlist
       setPlaylist(fetchedPlaylist);
+      setShowUsername(false);
   
     } catch (error) {
       console.error('Error:', error.message);
@@ -200,25 +203,33 @@ function TasteTwist() {
         </thead>
         <tbody>
         {filteredSongs.map((song, index) => (
-            <tr key={index}>
-            <td className="twist-title-column">{song.track_name}</td>
+        <tr key={index}>
+            <td className="twist-title-column">
+                {song.track_name}
+                {showUsername && ( // Conditionally render the username
+                    <div className="loves-text">
+                      liked by{' '}
+                      <span className="twist-username">{song.username}</span>
+                    </div>
+                  )}
+            </td>
             <td className="twist-artist-column">{song.performer}</td>
             <td className="twist-album-column">{song.album}</td>
             <td className="twist-saved-column">
                 <span
-                onClick={() => SaveSong(song)} // Call a function for edit action
-                style={{ cursor: 'pointer', marginLeft: '45px' }}
+                    onClick={() => SaveSong(song)}
+                    style={{ cursor: 'pointer', marginLeft: '45px' }}
                 >
-                <img
-                    src={saveIcon}
-                    alt="Save Icon"
-                    onClick={() => console.log(song)}
-                    style={{ width: '22px', height: '22px' }} // Adjust the size as needed
-                />
+                    <img
+                        src={saveIcon}
+                        alt="Save Icon"
+                        onClick={() => console.log(song)}
+                        style={{ width: '22px', height: '22px' }}
+                    />
                 </span>
             </td>
-            </tr>
-        ))}
+        </tr>
+    ))}
         </tbody>
     </table>
     </div>
