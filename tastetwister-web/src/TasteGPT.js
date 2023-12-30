@@ -40,6 +40,49 @@ function TasteGPT() {
       `${song.track_name} ${song.performer} ${song.album}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const [isLoading, setIsLoading] = useState(false); // New state for loading indicator
+  const handleSubmit = () => {
+
+    setIsLoading(true); // Set loading state to true before making the request
+    // Call the function to handle the submission
+    handleSubmitGenreEra();
+  };
+
+  const handleSubmitGenreEra = () => {
+    const storedUsername = localStorage.getItem('username');
+    const username = storedUsername;
+    const storedToken = localStorage.getItem('token');
+    
+    if (!storedToken) {
+      setIsLoading(false); // Set loading state to false in case of an error
+      // Handle the case where the token is not available
+      alert("User not authenticated. Please log in.");
+      return;
+    }
+
+    // Prepare the URL for the backend endpoint
+    const apiUrl = `http://127.0.0.1:5000/ai_song_suggestions_by_era_genre/${username}?era=${selectedEra}&genre=${selectedGenre}`;
+
+    // Make a GET request to the backend
+    fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': storedToken,
+      },
+    })
+    .then(response => response.json())
+    .then(data => {
+      // Handle the response from the backend
+      setPlaylist(data); // Assuming the response from the backend is an array of songs
+    })
+    .catch(error => {
+      console.error('Error fetching song suggestions:', error);
+      // Handle the error, such as displaying an alert or updating state
+    }).finally(() => {
+      setIsLoading(false); // Set loading state to false after the request is complete
+    });
+  };
+
   return (
     
     <div className="taste-gpt-container">
@@ -51,7 +94,7 @@ function TasteGPT() {
         value={selectedGenre}
         onChange={(e) => setSelectedGenre(e.target.value)}
       >
-        <option value="" disabled>Select Genre...</option>
+        <option value="" >Select Genre...</option>
         <option value="rock">Rock</option>
         <option value="pop">Pop</option>
         <option value="indie">Indie</option>
@@ -66,7 +109,7 @@ function TasteGPT() {
         value={selectedEra}
         onChange={(e) => setSelectedEra(e.target.value)}
       >
-        <option value="" disabled>Select Era...</option>
+        <option value="" >Select Era...</option>
         <option value="70s">70s</option>
         <option value="80s">80s</option>
         <option value="90s">90s</option>
@@ -74,12 +117,18 @@ function TasteGPT() {
         <option value="10s">10s</option>
         <option value="20s">20s</option>
       </select>
-      <button className='gpt-submit-button'
-              
-              style={{ background: '#329374', color: '#fff' }}
-            >
-              Submit 
-            </button>
+      <button
+        className='gpt-submit-button'
+        style={{ background: '#329374', color: '#fff' }}
+        onClick={handleSubmit}
+      >
+        Submit
+      </button>
+      {isLoading && (
+        <div className="loader-container">
+          <div className="loader"></div>
+        </div>
+      )}
       </div>
       <div className="gpt-search-bar">
         <input

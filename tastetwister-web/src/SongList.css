@@ -167,8 +167,8 @@
   }
   
   .popup .upload-button {
-    margin: 10px;
-    margin-top: 45px; /* Add margin to separate the "File Upload" button from the "Close" button */
+    margin-top: 40px; /* Add margin to separate the "File Upload" button from the "Close" button */
+    margin-bottom: -12px;
     padding: 10px 20px;
     background-color: #329374;
     color: #fff;
