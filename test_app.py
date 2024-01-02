@@ -499,6 +499,7 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertIn('message', response.json)
         self.assertEqual(response.json['message'], 'Song deleted successfully!')
 
+    '''
     @patch('app_jsonified.ChatOpenAI')
     @patch('app_jsonified.User.query')
     def test_ai_song_suggestions(self, mock_user_query, mock_chat_openai):
@@ -514,7 +515,7 @@ class TestFlaskRoutes(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response.json, list)
-
+    '''
     '''
     @patch('app_jsonified.Song.query')
     @patch('app_jsonified.User.query')

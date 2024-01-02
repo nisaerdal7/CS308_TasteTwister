@@ -23,6 +23,9 @@ from dotenv import load_dotenv, find_dotenv
 from langchain.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain.output_parsers import ResponseSchema, StructuredOutputParser
+from spotipy.oauth2 import SpotifyOAuth
+from spotipy import SpotifyOAuth, Spotify
+import spotipy.util as util
 
 
 app = Flask(__name__)
@@ -40,6 +43,7 @@ ALLOWED_EXTENSIONS = {'csv', 'json'}
 # Your application's Client ID and Client Secret
 SPOTIFY_CLIENT_ID = "8a9fb2659bdb46d6815580ec3ff4d2c6"
 SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
+SPOTIFY_REDIRECT_URI = "http://localhost:4000/callback"
 
 os.environ["OPENAI_API_KEY"] = "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"
 
@@ -593,6 +597,67 @@ def export_songs():
 
     return Response(stream_with_context(generate()), headers=headers), 200
 
+# Spotify API authentication
+sp_oauth = SpotifyOAuth(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, scope="playlist-read-private")
+
+@app.route('/login_spotify', methods=['POST'])
+def login_spotify():
+    auth_url = sp_oauth.get_authorize_url()
+    return jsonify({'spotify_auth_url': auth_url})
+
+@app.route('/import_spotify_playlist', methods=['POST'])
+def import_spotify_playlist():
+    data = request.get_json()
+    playlist_url = data.get('playlist_url')
+
+    if not playlist_url:
+        return jsonify({'error': 'Spotify playlist URL is missing'}), 400
+
+    # Extract playlist ID from the URL
+    playlist_id = get_playlist_id_from_url(playlist_url)
+
+    if not playlist_id:
+        return jsonify({'error': 'Invalid Spotify playlist URL'}), 400
+
+    # Retrieve additional data from the session
+    additional_data = session.pop('additional_data', {})
+
+    # Get the Spotify access token
+    access_token = sp_oauth.get_access_token(request.json.get('spotify_auth_code'))
+
+    if not access_token:
+        return jsonify({'error': 'Failed to obtain Spotify access token'}), 401
+
+    # Initialize Spotipy with the access token
+    sp = Spotify(auth=access_token)
+
+    # Get tracks from the playlist
+    try:
+        playlist_tracks = sp.playlist_tracks(playlist_id)
+        tracks = playlist_tracks['items']
+    except Exception as e:
+        return jsonify({'error': f'Error retrieving playlist tracks: {str(e)}'}), 500
+
+    for track in tracks:
+        track_info = track['track']
+        track_name = track_info['name']
+        performer = track_info['artists'][0]['name']
+        album = track_info['album']['name']
+        rating = None
+
+        # Add or update the song in the database
+        add_or_update_song(track_name, performer, album, rating, additional_data.get('username'))
+
+    return jsonify({'message': 'Spotify playlist imported successfully!'}), 200
+
+def get_playlist_id_from_url(playlist_url):
+    # Extract playlist ID from the Spotify playlist URL
+    parts = playlist_url.split('/')
+    if 'playlist' in parts:
+        index = parts.index('playlist')
+        if index + 1 < len(parts):
+            return parts[index + 1]
+    return None
 
 
 @app.route('/send_invite', methods=['POST'])
