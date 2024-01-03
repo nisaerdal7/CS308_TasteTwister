@@ -318,6 +318,7 @@ def songs():
     ]), 200
 
     # Handle POST requests
+    # Does not have token authentication because of seeing friends songs logic
     if request.method == 'POST':
         token = request.headers.get('Authorization')
         if not token:
@@ -388,6 +389,8 @@ def list_most_relevant_songs(track_name, performer, album):
     # If no tracks found, return an empty list
     return []
 
+
+# Does not have token authentication because of seeing friends songs logic
 @app.route('/songs/unrated', methods=['GET'])
 def get_unrated_songs():
     # Handle GET requests for unrated songs
@@ -759,7 +762,7 @@ def respond_invite():
     return jsonify({'message': 'Invite responded'}), 200
 
 
-
+# Not tokenized due to friend list viewing capability at profiles
 @app.route('/friends/<username>', methods=['GET'])
 def view_friends(username):
     user = User.query.filter_by(username=username).first()
@@ -770,7 +773,7 @@ def view_friends(username):
     return jsonify(friends), 200
 
 
-@app.route('/remove_friend', methods=['POST'])  # Changed from DELETE to POST
+@app.route('/remove_friend', methods=['POST']) 
 def remove_friend():
     token = request.headers.get('Authorization')
     current_user = User.query.filter_by(token=token).first()
@@ -1009,6 +1012,14 @@ def get_top_albums_or_performers(query, attribute):
 @app.route('/stats/last-7-days/<username>', methods=['GET'])
 @app.route('/stats/last-24-hours/<username>', methods=['GET'])
 def user_stats(username):
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    authenticated_user = User.query.filter_by(token=token).first()
+    if not authenticated_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
     user = User.query.filter_by(username=username).first()
     if not user:
         return jsonify({'error': 'User not found'}), 404
@@ -1081,6 +1092,14 @@ def get_filtered_songs_stats(query, timeframe, username, filter_by=None, filter_
 @app.route('/stats/mean/last-7-days', methods=['GET'])
 @app.route('/stats/mean/last-24-hours', methods=['GET'])
 def mean_stats():
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    authenticated_user = User.query.filter_by(token=token).first()
+    if not authenticated_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
     timeframe = request.path.split('/')[3].replace('-', '_')
     username = request.args.get('username')  # To get the username parameter
     filter_by = request.args.get('filter_by')  # 'album' or 'performer'
@@ -1096,10 +1115,17 @@ def mean_stats():
 
 @app.route('/block_friend', methods=['POST'])
 def block_friend():
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    authenticated_user = User.query.filter_by(token=token).first()
+    if not authenticated_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
     data = request.json
     blocker_username = data.get('blocker')
     blocked_username = data.get('blocked')
-
     try:
         blocker = User.query.get(blocker_username)
         blocked = User.query.get(blocked_username)
@@ -1123,9 +1149,18 @@ def block_friend():
 
 @app.route('/unblock_friend', methods=['POST'])
 def unblock_friend():
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    authenticated_user = User.query.filter_by(token=token).first()
+    if not authenticated_user:
+        return jsonify({'error': 'Invalid token'}), 401
+
     data = request.json
     blocker_username = data.get('blocker')
     blocked_username = data.get('blocked')
+
 
     try:
         blocker = User.query.get(blocker_username)
