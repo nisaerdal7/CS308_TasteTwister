@@ -6,7 +6,7 @@ import json
 from werkzeug.utils import secure_filename
 from sqlalchemy import MetaData, Table, func, extract
 from sqlalchemy import and_, or_
-from sqlalchemy.sql import not_
+from sqlalchemy.sql import and_, not_
 from sqlalchemy.exc import SQLAlchemyError
 from flask import Response, stream_with_context
 from io import StringIO
@@ -1335,7 +1335,39 @@ def ai_song_suggestions_by_era_genre(username):
     return jsonify(songs_list)
 
 
+@app.route('/unheard_artists', methods=['GET'])
+def find_unheard_artists():
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
 
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    one_week_ago = datetime.utcnow() - timedelta(days=7)
+
+    artists = Song.query.with_entities(Song.performer)\
+        .filter(
+            Song.username == user.username,
+            Song.updated_at < one_week_ago,
+            not_(db.session.query(Song.id)
+                 .filter(Song.performer == Song.performer,
+                         Song.updated_at >= one_week_ago)
+                 .exists())
+        ).subquery()
+
+    artist_song = Song.query.with_entities(Song.performer, Song.track_name)\
+        .filter(
+            Song.performer.in_(artists),
+            Song.rating == 5
+        ).order_by(func.random()).first()
+
+    if artist_song:
+        artist, song = artist_song
+        return jsonify({'artist': artist, 'song': song}), 200
+    else:
+        return jsonify({}), 200
 
 
 
