@@ -41,6 +41,8 @@ ALLOWED_EXTENSIONS = {'csv', 'json'}
 SPOTIFY_CLIENT_ID = "8a9fb2659bdb46d6815580ec3ff4d2c6"
 SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
 
+os.environ["OPENAI_API_KEY"] = "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"
+
 db = SQLAlchemy(app)
 
 # Load environment variables
@@ -48,7 +50,7 @@ load_dotenv(find_dotenv())
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
 # Initialize the Chat model
-chat = ChatOpenAI(temperature=0.9, model="gpt-3.5-turbo")
+chat = ChatOpenAI(api_key = "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", temperature=0.9, model="gpt-3.5-turbo")
 
 
 
@@ -1204,26 +1206,26 @@ Be creative and avoid repetition.
 
 The suggested songs must be strictly from:
 {era}
+
 {genre}
 
 Format the output as JSON with the strictly following keys: track_name, performer, album
 
 Example format of return:
 
-{ "track_name": "Bohemian Rhapsody", "performer": "Queen", "album": "A Night at the Opera" }
-{ "track_name": "Purple Haze", "performer": "Jimi Hendrix", "album": "Are You Experienced" }
+{example}
 
 """
 
 @app.route('/ai_song_suggestions_by_era_genre/<username>', methods=['GET'])
 def ai_song_suggestions_by_era_genre(username):
-    era = request.args.get('era', default=None)
-    genre = request.args.get('genre', default=None)
+    era = request.args.get('era', default="")
+    genre = request.args.get('genre', default="")
 
-    if (era != None):
+    if (era != ""):
         era += " Era"
         
-    if (genre != None):
+    if (genre != ""):
         genre += " Genre"
 
     # Retrieve token from the request headers
@@ -1241,10 +1243,13 @@ def ai_song_suggestions_by_era_genre(username):
         return jsonify({'error': 'Unauthorized access'}), 403
 
     # Create the prompt with era and genre
-    prompt = song_suggestion_era_genre_template.format(era=era if era else "any", genre=genre if genre else "any genre")
+    #prompt = song_suggestion_era_genre_template.format(era = era, genre = genre)
+
+    prompt_template = ChatPromptTemplate.from_template(song_suggestion_era_genre_template)
+    messages = prompt_template.format_messages(era = era, genre = genre, example = example)
 
     # Get the response from the LLM
-    response = chat(prompt)
+    response = chat(messages)
 
     response_content = response.content
 

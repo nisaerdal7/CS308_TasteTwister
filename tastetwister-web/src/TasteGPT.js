@@ -9,6 +9,7 @@ function TasteGPT() {
   const [selectedTimeframe, setSelectedTimeframe] = useState('last-24-hours'); // Default value for timeframe
   const [activeTab, setActiveTab] = useState('yourTaste'); // Default tab
   const [playlist, setPlaylist] = useState([]);
+  const [isLoading, setIsLoading] = useState(false); // New state for loading indicator
   const SaveSong = (song) => {
     // Your SaveSong function logic
     const storedToken = localStorage.getItem('token');
@@ -36,6 +37,7 @@ function TasteGPT() {
   };
 
   const handleSubmitTimeframe = () => {
+    setIsLoading(true); 
     // Handle submission based on the selected timeframe
     const storedToken = localStorage.getItem('token');
     const username = localStorage.getItem('username'); // Replace with the actual username
@@ -55,40 +57,56 @@ function TasteGPT() {
           setPlaylist(data)
           console.log('AI Song Suggestions:', data);
         })
-        .catch((error) => {
-          console.error('Error fetching AI Song Suggestions:', error);
+        .catch(error => {
+          console.error('Error fetching song suggestions:', error);
+          // Handle the error, such as displaying an alert or updating state
+        }).finally(() => {
+          setIsLoading(false); // Set loading state to false after the request is complete
         });
     
   };
 
   const handleSubmitGenreEra = () => {
+    setIsLoading(true);
+    const storedUsername = localStorage.getItem('username');
+    const username = storedUsername;
     const storedToken = localStorage.getItem('token');
-    const username = localStorage.getItem('username'); // Replace with the actual username
-    if(selectedEra || selectedGenre){
-    // Construct the query parameters
-    const eraQueryParam = selectedEra ? encodeURIComponent(selectedEra) : '';
-    const genreQueryParam = selectedGenre ? encodeURIComponent(selectedGenre) : '';
 
-    // Send the request with the constructed URL
-    fetch(`http://127.0.0.1:5000/ai_song_suggestions_by_era_genre/${username}?era=${eraQueryParam}&genre=${genreQueryParam}`, {
+    if (!storedToken) {
+      setIsLoading(false); // Set loading state to false in case of an error
+      // Handle the case where the token is not available
+      alert("User not authenticated. Please log in.");
+      return;
+    }
+
+    // Prepare the URL for the backend endpoint
+    const apiUrl = `http://127.0.0.1:5000/ai_song_suggestions_by_era_genre/${username}?era=${selectedEra}&genre=${selectedGenre}`;
+
+    // Make a GET request to the backend
+    fetch(apiUrl, {
       method: 'GET',
       headers: {
-        Authorization: storedToken,
+        'Authorization': storedToken,
       },
-      credentials: 'include',
     })
-      .then((response) => response.json())
-      .then((data) => {
-        // Handle the data as needed
-        console.log('AI Song Suggestions by Era and Genre:', data);
-      })
-      .catch((error) => {
-        console.error('Error fetching AI Song Suggestions by Era and Genre:', error);
-      });
-    }
-    else{
-      alert('Select Genre or Era!')
-    }
+    .then(response => response.json())
+    .then(data => {
+      // Handle the response from the backend
+      setPlaylist(data); // Assuming the response from the backend is an array of songs
+    })
+    .catch(error => {
+      console.error('Error fetching song suggestions:', error);
+      // Handle the error, such as displaying an alert or updating state
+    }).finally(() => {
+      setIsLoading(false); // Set loading state to false after the request is complete
+    });
+  };
+
+  const handleSubmit = () => {
+
+    setIsLoading(true); // Set loading state to true before making the request
+    // Call the function to handle the submission
+    handleSubmitGenreEra();
   };
 
   const handleTabChange = (tab) => {
@@ -104,17 +122,7 @@ function TasteGPT() {
     setSelectedEra(e.target.value);
   };
 
-  const handleSubmit = () => {
-    // Handle submission based on the active tab
-    if (activeTab === 'yourTaste') {
-      // Handle "Based on your taste!" tab submission
-      console.log('Selected Timeframe:', selectedTimeframe);
-    } else {
-      // Handle "Based on genres & eras" tab submission
-      console.log('Selected Genre:', selectedGenre);
-      console.log('Selected Era:', selectedEra);
-    }
-  };
+
   const filteredSongs = playlist.filter(
     (song) =>
       `${song.track_name} ${song.performer} ${song.album}`.toLowerCase().includes(searchTerm.toLowerCase())
@@ -148,12 +156,17 @@ function TasteGPT() {
             <option value="all-time">All time</option>
           </select>
           <button
-            className="gpt-submit-button"
-            style={{ background: '#329374', color: '#fff' }}
-            onClick={handleSubmitTimeframe}
-          >
-            Submit
-          </button>
+        className='gpt-submit-button'
+        style={{ background: '#329374', color: '#fff' }}
+        onClick={handleSubmitTimeframe}
+      >
+        Submit
+      </button>
+      {isLoading && (
+        <div className="loader-container">
+          <div className="loader"></div>
+        </div>
+      )}
         </div>
       ) : (
         <div className="dropdown-container">
@@ -190,12 +203,17 @@ function TasteGPT() {
           </select>
 
           <button
-            className="gpt-submit-button"
-            style={{ background: '#329374', color: '#fff' }}
-            onClick={handleSubmitGenreEra}
-          >
-            Submit
-          </button>
+        className='gpt-submit-button'
+        style={{ background: '#329374', color: '#fff' }}
+        onClick={handleSubmit}
+      >
+        Submit
+      </button>
+      {isLoading && (
+        <div className="loader-container">
+          <div className="loader"></div>
+        </div>
+      )}
         </div>
       )}
 
