@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Profile.css';
 import myProfileIcon from './images/myprofileicon.jpg';
 import Sidebar from './Sidebar';
 
+
 const Profile = () => {
   const username = localStorage.getItem('username');
+  const navigate = useNavigate();
   const [friendsList, setFriendsList] = useState([]);
   const [newFriend, setNewFriend] = useState('');
   const [activeTab, setActiveTab] = useState('received');
@@ -17,6 +20,7 @@ const Profile = () => {
   useEffect(() => {
     fetchRequests();
     fetchFriends();
+   
     fetchBlockedFriends();
   }, []);
 
@@ -228,6 +232,11 @@ const Profile = () => {
       .catch((error) => console.error('Error unblocking friend:', error));
   };
 
+  const handleFriendClick = (friend) => {
+    // Use the navigate() function to navigate to another page
+    navigate(`/friend/${encodeURIComponent(friend)}`);
+  };
+
 
 
       return (
@@ -243,7 +252,7 @@ const Profile = () => {
               <div className="profile-section">
       <ul>
         {friendsList.map((friend) => (
-          <li key={friend} className="friend-item">
+          <li key={friend} className="friend-item" onClick={() => handleFriendClick(friend)}>
             {friend}
             <div className="friend-options">
               <span

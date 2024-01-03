@@ -10,6 +10,7 @@ import StatisticsPage from './StatisticsPage';
 import {BrowserRouter, Route, Routes } from 'react-router-dom';
 import TasteTwistPage from './TasteTwistPage';
 import TasteGPTPage from './TasteGPTPage';
+import FriendProfilePage from './FriendProfilePage';
 ReactDOM.render(
   
   <BrowserRouter>
@@ -24,6 +25,7 @@ ReactDOM.render(
         <Route exact path="/tasteit" element={<TasteTwistPage />} />
         <Route exact path="/tastegpt" element={<TasteGPTPage />} />
         <Route exact path="/statistics" element={<StatisticsPage />} />
+        <Route path="/friend/:friendName" element={<FriendProfilePage />} />
         </Routes>
     
     </div>
