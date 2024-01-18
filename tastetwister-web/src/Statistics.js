@@ -13,6 +13,7 @@ const StatsPage = () => {
   });
   const [ratingData, setRatingData] = useState([]);
   const username = localStorage.getItem('username');
+  const storedToken = localStorage.getItem('token');
 
   const handleTwitterShare = () => {
     const tweetText = `Here are my top ${selectedCategory} according to TasteTwister: ${getTopItemsText()}`;
@@ -33,6 +34,9 @@ const StatsPage = () => {
       
       const response = await fetch(`http://127.0.0.1:5000/stats/mean/all-time?username=${username}`, {
         method: 'GET',
+        headers: {
+          Authorization: storedToken,
+        },
       });
     
       if (!response.ok) {
@@ -74,6 +78,9 @@ const StatsPage = () => {
     try {
       const response = await fetch(`http://127.0.0.1:5000/stats/${selectedTab}/${username}`, {
         method: 'GET',
+        headers: {
+          Authorization: storedToken,
+        },
       });
 
       if (!response.ok) {

@@ -8,7 +8,7 @@ function TasteTwist() {
   const [searchTerm, setSearchTerm] = useState('');
   const [playlist, setPlaylist] = useState([]);
   const [showUsername, setShowUsername] = useState(false); // New state variable
-
+  const [isLoading, setIsLoading] = useState(false);
   const [friendPopupVisible, setFriendPopupVisible] = useState(false);
   const [friendUsername, setFriendUsername] = useState('');
 
@@ -46,6 +46,7 @@ function TasteTwist() {
   };
 
   const submitTasteTwistUsers = async () => {
+   
     try {
 
         const storedToken = localStorage.getItem('token');
@@ -81,6 +82,7 @@ function TasteTwist() {
   };
 
   const submitTasteTwistFriends = async () => {
+    
 
     try {
 
@@ -160,6 +162,45 @@ function TasteTwist() {
       // Handle error as needed
     }
   };
+  const submitTasteTwistFavourites = async () => {
+    setIsLoading(true);
+    setPlaylist([]);
+    try {
+      // Get the stored token from localStorage
+      const storedToken = localStorage.getItem('token');
+      console.log(storedToken);
+  
+      // Make a request to the Flask backend
+      const response = await fetch('http://127.0.0.1:5000/get_top_artists_and_songs', {
+        method: 'GET',
+        headers: {
+          "Authorization": storedToken,
+          'Content-Type': 'application/json',
+        },
+      });
+  
+      if (!response.ok) {
+        // Handle error if the response status is not OK (2xx)
+        const errorMessage = await response.text();
+        throw new Error(`Failed to fetch top artists and songs: ${errorMessage}`);
+      }
+  
+      // Parse the JSON response
+      const topArtistsAndSongs = await response.json();
+      setShowUsername(false);
+      setPlaylist(topArtistsAndSongs);
+      setIsLoading(false);
+      console.log(topArtistsAndSongs);
+  
+      // Handle the fetched data as needed, e.g., updating state or displaying information
+      // For example, assuming there's a function setTopArtistsAndSongs to update state:
+      // setTopArtistsAndSongs(topArtistsAndSongs);
+  
+    } catch (error) {
+      console.error('Error:', error.message);
+      // Handle error as needed
+    }
+  };
   
 
 
@@ -167,20 +208,50 @@ function TasteTwist() {
     (song) =>
       `${song.track_name} ${song.performer} ${song.album}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const [selectedButton, setSelectedButton] = useState(null);
+
+  const handleButtonClick = (buttonName, submitFunction) => {
+    // Update the state with the selected button
+    setSelectedButton(buttonName);
+
+    // Perform the desired operation (e.g., calling the submit function)
+    submitFunction();
+  };
 
   return (
-    
     <div className="taste-twist-container">
-    <div className="button-container">
-      <button className="buttonList" onClick={submitTasteTwistUsers}>
-        All users!
-      </button>
-      <button className="buttonList" onClick={submitTasteTwistFriends}>
-        All friends!
-      </button>
-      <button className="buttonList" onClick={showFriendPopup}>
-        Specific friend...
-      </button>
+      <div className="button-container">
+        <button
+          className={`buttonList ${selectedButton === 'All users!' ? 'selected-twist-button' : ''}`}
+          onClick={() => handleButtonClick('All users!', submitTasteTwistUsers)}
+        >
+          All users!
+        </button>
+        <button
+          className={`buttonList ${selectedButton === 'All friends!' ? 'selected-twist-button' : ''}`}
+          onClick={() => handleButtonClick('All friends!', submitTasteTwistFriends)}
+        >
+          All friends!
+        </button>
+        <button
+          className={`buttonList ${selectedButton === 'Specific friend...' ? 'selected-twist-button' : ''}`}
+          onClick={() => {
+            handleButtonClick('Specific friend...', showFriendPopup);
+          }}
+        >
+          Specific friend...
+        </button>
+        <button
+          className={`buttonList ${selectedButton === 'From your favourites!' ? 'selected-twist-button' : ''}`}
+          onClick={() => handleButtonClick('From your favourites!', submitTasteTwistFavourites)}
+        >
+          From your favourites!
+        </button>
+        {isLoading && (
+        <div className="loader-container">
+          <div className="loader"></div>
+        </div>
+      )}
     </div>
     <div className="twist-search-bar">
     <input

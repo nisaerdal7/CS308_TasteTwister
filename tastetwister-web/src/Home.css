@@ -26,3 +26,13 @@
     background-position: center;
   
   }
+  .home-notification-container {
+    position: fixed;
+    top: 65px; /* Adjust the top distance as needed */
+    right: 90px; /* Adjust the right distance as needed */
+  }
+  .home-container h3 {
+    background-color: rgba(0, 0, 0, 0.7); /* Black with 70% transparency */
+    color: aliceblue;/* Text color */
+    padding: 10px; /* Add padding for better visibility */
+  }
