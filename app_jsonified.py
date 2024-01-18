@@ -608,72 +608,6 @@ def export_songs():
     return Response(stream_with_context(generate()), headers=headers), 200
 
 
-# Spotify API authentication
-sp_oauth = SpotifyOAuth(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, scope="playlist-read-private")
-
-
-@app.route('/login_spotify', methods=['POST'])
-def login_spotify():
-    auth_url = sp_oauth.get_authorize_url()
-    return jsonify({'spotify_auth_url': auth_url})
-
-
-@app.route('/import_spotify_playlist', methods=['POST'])
-def import_spotify_playlist():
-    data = request.get_json()
-    playlist_url = data.get('playlist_url')
-
-    if not playlist_url:
-        return jsonify({'error': 'Spotify playlist URL is missing'}), 400
-
-    # Extract playlist ID from the URL
-    playlist_id = get_playlist_id_from_url(playlist_url)
-
-    if not playlist_id:
-        return jsonify({'error': 'Invalid Spotify playlist URL'}), 400
-
-    # Retrieve additional data from the session
-    additional_data = session.pop('additional_data', {})
-
-    # Get the Spotify access token
-    access_token = sp_oauth.get_access_token(request.json.get('spotify_auth_code'))
-
-    if not access_token:
-        return jsonify({'error': 'Failed to obtain Spotify access token'}), 401
-
-    # Initialize Spotipy with the access token
-    sp = Spotify(auth=access_token)
-
-    # Get tracks from the playlist
-    try:
-        playlist_tracks = sp.playlist_tracks(playlist_id)
-        tracks = playlist_tracks['items']
-    except Exception as e:
-        return jsonify({'error': f'Error retrieving playlist tracks: {str(e)}'}), 500
-
-    for track in tracks:
-        track_info = track['track']
-        track_name = track_info['name']
-        performer = track_info['artists'][0]['name']
-        album = track_info['album']['name']
-        rating = None
-
-        # Add or update the song in the database
-        add_or_update_song(track_name, performer, album, rating, additional_data.get('username'))
-
-    return jsonify({'message': 'Spotify playlist imported successfully!'}), 200
-
-
-def get_playlist_id_from_url(playlist_url):
-    # Extract playlist ID from the Spotify playlist URL
-    parts = playlist_url.split('/')
-    if 'playlist' in parts:
-        index = parts.index('playlist')
-        if index + 1 < len(parts):
-            return parts[index + 1]
-    return None
-
-
 # Route for getting user's top 3 artists and their songs
 @app.route('/get_top_artists_and_songs', methods=['GET'])
 def get_top_artists_and_songs():
@@ -687,9 +621,9 @@ def get_top_artists_and_songs():
         return jsonify({'error': 'Invalid token'}), 401
 
     # Get the user's top 3 artists and their songs
-    top_artists_and_songs = get_user_top_artists_and_songs(user.username)
+    recommendations = get_user_top_artists_and_songs(user.username)
 
-    return jsonify({'top_artists_and_songs': top_artists_and_songs}), 200
+    return jsonify(recommendations), 200
 
 
 def get_user_top_artists_and_songs(username):
@@ -704,7 +638,7 @@ def get_user_top_artists_and_songs(username):
     result = []
     for artist, _ in top_artists_and_songs:
         recommendations = get_recommendations_for_artists(username, [artist])
-        result.append({'artist': artist, 'recommendations': recommendations})
+        result.extend(recommendations)
 
     return result
 
@@ -725,13 +659,15 @@ def get_recommendations_for_artists(username, artists):
                 Song.performer == artist
             ).all()
 
+            unrated_songs = Song.query.filter(Song.username == username, Song.rating.is_(None)).all()
+
             # Filter out songs that the user has already rated
             recommendations = [
                 {
                     "track_name": track.name,
                     "performer": track.artists[0].name,
                     "album": track.album.name,
-                } for track in tracks[:5] if track.name not in [song[0] for song in user_rated_songs]
+                } for track in tracks[:5] if track.name not in [song[0] for song in user_rated_songs] and track.name not in [song[0] for song in unrated_songs]
             ]
 
             all_recommendations.extend(recommendations)
