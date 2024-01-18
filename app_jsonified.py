@@ -4,7 +4,7 @@ import os
 import csv
 import json
 from werkzeug.utils import secure_filename
-from sqlalchemy import MetaData, Table, func, extract
+from sqlalchemy import MetaData, Table, func, extract, desc
 from sqlalchemy import and_, or_
 from sqlalchemy.sql import and_, not_
 from sqlalchemy.exc import SQLAlchemyError
@@ -126,6 +126,7 @@ class Song(db.Model):
         self.rating = new_rating
         db.session.commit()
 
+
 def add_or_update_song(user_track_name, user_performer, user_album, rating, username):
     # Convert empty string in rating to None
     if rating == '':
@@ -147,8 +148,10 @@ def add_or_update_song(user_track_name, user_performer, user_album, rating, user
 
     db.session.commit()
 
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 def add_songs_from_csv(file_path, username):
     invalid_rows = 0
@@ -184,6 +187,7 @@ def add_songs_from_csv(file_path, username):
         # Flash a message if some rows were skipped
         if invalid_rows > 0:
             flash('Some imports did not meet the required format', 'warning')
+
 
 def add_songs_from_json(file_path, username):
     invalid_items = 0
@@ -343,6 +347,7 @@ def songs():
     # If method is neither GET nor POST
     return jsonify({'error': 'Invalid request method'}), 405
 
+
 # Route for listing songs and adding the selected song
 @app.route('/list_and_add_songs', methods=['POST'])
 def list_and_add_songs():
@@ -369,6 +374,7 @@ def list_and_add_songs():
     response_data = {'relevant_songs': relevant_songs}
     #response_data = {'relevant_songs': relevant_songs, 'user_permission': user.permission
     return jsonify(response_data), 200
+
 
 def list_most_relevant_songs(track_name, performer, album):
     # Use Spotify API to get the most relevant 5 songs
@@ -412,8 +418,6 @@ def get_unrated_songs():
                 "updated_at": song.updated_at  # Include the updated timestamp
             } for song in unrated_songs
         ]), 200
-
-
 
 
 @app.route('/upload_songs', methods=['POST'])
@@ -476,6 +480,7 @@ def update_song_rating(id):
     else:
         return jsonify({'error': 'Song not found or unauthorized access'}), 404
 
+
 # Route for single entry deletion
 @app.route('/songs/<int:id>/delete', methods=['POST'])
 def delete_song(id):
@@ -494,6 +499,7 @@ def delete_song(id):
         return jsonify({'message': 'Song deleted successfully!'}), 200
     else:
         return jsonify({'error': 'Song not found or unauthorized access'}), 404
+
 
 # Route for deletion by artist
 @app.route('/songs/artist/<string:artist>/delete', methods=['POST'])
@@ -514,6 +520,7 @@ def delete_songs_by_artist(artist):
         return jsonify({'message': f'All songs by {artist} deleted successfully!'}), 200
     else:
         return jsonify({'error': 'No songs found for the specified artist or unauthorized access'}), 404
+
 
 # Route for deletion by album
 @app.route('/songs/album/<string:album>/delete', methods=['POST'])
@@ -600,13 +607,16 @@ def export_songs():
 
     return Response(stream_with_context(generate()), headers=headers), 200
 
+
 # Spotify API authentication
 sp_oauth = SpotifyOAuth(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, scope="playlist-read-private")
+
 
 @app.route('/login_spotify', methods=['POST'])
 def login_spotify():
     auth_url = sp_oauth.get_authorize_url()
     return jsonify({'spotify_auth_url': auth_url})
+
 
 @app.route('/import_spotify_playlist', methods=['POST'])
 def import_spotify_playlist():
@@ -653,6 +663,7 @@ def import_spotify_playlist():
 
     return jsonify({'message': 'Spotify playlist imported successfully!'}), 200
 
+
 def get_playlist_id_from_url(playlist_url):
     # Extract playlist ID from the Spotify playlist URL
     parts = playlist_url.split('/')
@@ -661,6 +672,71 @@ def get_playlist_id_from_url(playlist_url):
         if index + 1 < len(parts):
             return parts[index + 1]
     return None
+
+
+# Route for getting user's top 3 artists and their songs
+@app.route('/get_top_artists_and_songs', methods=['GET'])
+def get_top_artists_and_songs():
+    # Validate the token
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Get the user's top 3 artists and their songs
+    top_artists_and_songs = get_user_top_artists_and_songs(user.username)
+
+    return jsonify({'top_artists_and_songs': top_artists_and_songs}), 200
+
+
+def get_user_top_artists_and_songs(username):
+    # Query the database to get the user's top 3 artists and their songs based on ratings average
+    top_artists_and_songs = db.session.query(Song.performer, func.avg(Song.rating).label('avg_rating')) \
+        .filter(Song.username == username) \
+        .group_by(Song.performer) \
+        .order_by(desc('avg_rating')) \
+        .limit(3) \
+        .all()
+
+    result = []
+    for artist, _ in top_artists_and_songs:
+        recommendations = get_recommendations_for_artists(username, [artist])
+        result.append({'artist': artist, 'recommendations': recommendations})
+
+    return result
+
+
+def get_recommendations_for_artists(username, artists):
+    all_recommendations = []
+
+    myclient = Client(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET)
+
+    for artist in artists:
+        search_result = myclient.search(artist)
+        tracks = search_result.get_tracks()
+
+        if tracks:
+            # Get songs that the user has already rated by the specified artist
+            user_rated_songs = db.session.query(Song.track_name).filter(
+                Song.username == username,
+                Song.performer == artist
+            ).all()
+
+            # Filter out songs that the user has already rated
+            recommendations = [
+                {
+                    "track_name": track.name,
+                    "performer": track.artists[0].name,
+                    "album": track.album.name,
+                } for track in tracks[:5] if track.name not in [song[0] for song in user_rated_songs]
+            ]
+
+            all_recommendations.extend(recommendations)
+
+    return all_recommendations
 
 
 @app.route('/send_invite', methods=['POST'])
@@ -700,7 +776,6 @@ def send_invite():
     return jsonify({'message': 'Friend invite sent'}), 200
 
 
-
 @app.route('/incoming_invites', methods=['GET'])
 def view_incoming_invites():
     token = request.headers.get('Authorization')
@@ -712,7 +787,6 @@ def view_incoming_invites():
     invites_data = [{'id': invite.id, 'sender': invite.sender, 'sent_at': invite.sent_at} for invite in invites]
 
     return jsonify(invites_data), 200
-
 
 
 @app.route('/outgoing_invites', methods=['GET'])
@@ -727,8 +801,6 @@ def view_outgoing_invites():
     invites_data = [{'id': invite.id, 'receiver': invite.receiver, 'sent_at': invite.sent_at} for invite in invites]
 
     return jsonify(invites_data), 200
-
-
 
 
 @app.route('/respond_invite', methods=['POST'])
@@ -801,8 +873,6 @@ def remove_friend():
     return jsonify({'message': 'Friend removed'}), 200
 
 
-
-
 @app.route('/recommend_playlist_all_users', methods=['GET'])
 def recommend_playlist_all_users():
     # Retrieve token from the request headers
@@ -852,7 +922,6 @@ def recommend_playlist_all_users():
     } for song in other_songs]
 
     return jsonify(playlist_json), 200
-
 
 
 @app.route('/recommend_playlist_friends_duo', methods=['GET'])
@@ -940,8 +1009,6 @@ def recommend_playlist_friends_duo():
     return jsonify(playlist_json), 200
 
 
-
-
 @app.route('/recommend_playlist_from_all_friends', methods=['GET'])
 def recommend_playlist_from_all_friends():
     # Retrieve token from the request headers
@@ -992,13 +1059,13 @@ def recommend_playlist_from_all_friends():
     return jsonify(playlist_json), 200
 
 
-
 def filter_songs_by_timeframe(query, timeframe):
     if timeframe == 'last_24_hours':
         query = query.filter(Song.updated_at >= datetime.now() - timedelta(hours=24))
     elif timeframe == 'last_7_days':
         query = query.filter(Song.updated_at >= datetime.now() - timedelta(days=7))
     return query
+
 
 def get_top_albums_or_performers(query, attribute):
     return (query.with_entities(attribute, func.avg(Song.rating).label('average_rating'))
@@ -1147,6 +1214,7 @@ def block_friend():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/unblock_friend', methods=['POST'])
 def unblock_friend():
     token = request.headers.get('Authorization')
@@ -1182,7 +1250,8 @@ def unblock_friend():
     except SQLAlchemyError as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
-    
+
+
 @app.route('/blocked_friends', methods=['GET'])
 def view_blocked_friends():
     # Retrieve token from the request headers
