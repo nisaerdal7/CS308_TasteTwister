@@ -667,7 +667,7 @@ def get_recommendations_for_artists(username, artists):
                     "track_name": track.name,
                     "performer": track.artists[0].name,
                     "album": track.album.name,
-                } for track in tracks[:5] if track.name not in [song[0] for song in user_rated_songs] and track.name not in [song[0] for song in unrated_songs]
+                } for track in tracks[:5] if track.name not in [song.track_name for song in user_rated_songs] and track.name not in [song.track_name for song in unrated_songs]
             ]
 
             all_recommendations.extend(recommendations)
