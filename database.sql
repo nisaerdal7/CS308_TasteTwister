@@ -9,6 +9,8 @@ CREATE TABLE users (
     permission BOOLEAN NOT NULL
 );
 
+ALTER TABLE users ADD COLUMN picture VARCHAR(255) DEFAULT 'default';
+
 
 CREATE TABLE songs (
     id INTEGER PRIMARY KEY AUTO_INCREMENT,
@@ -23,6 +25,7 @@ CREATE TABLE songs (
     UNIQUE (track_name(100), performer(100), album(100), username)
 );
 
+ALTER TABLE songs MODIFY rating INTEGER NULL;
 
 
 CREATE TABLE friendships (
@@ -46,17 +49,27 @@ CREATE TABLE friend_requests (
     CHECK (sender <> receiver)
 );
 
+CREATE TABLE blocked_users (
+    blocker VARCHAR(255) NOT NULL,
+    blocked VARCHAR(255) NOT NULL,
+    PRIMARY KEY (blocker, blocked),
+    FOREIGN KEY (blocker) REFERENCES users(username),
+    FOREIGN KEY (blocked) REFERENCES users(username),
+    CHECK (blocker <> blocked)
+);
 
 
 SELECT * FROM tastetwister.songs;
 
 SELECT * FROM tastetwister.users;
 
+SELECT * FROM tastetwister.friendships;
 
-DROP TABLE tastetwister.songs;
+SELECT * FROM tastetwister.friend_requests;
 
-DROP TABLE tastetwister.friendships;
+SELECT * FROM tastetwister.blocked_users;
 
-DROP TABLE tastetwister.friend_requests;
+DESCRIBE tastetwister.songs;
 
-DROP TABLE tastetwister.users;
+
+SELECT * FROM tastetwister.blocked_users;

@@ -117,11 +117,12 @@ class FriendRequest(db.Model):
 class User(db.Model):
     __tablename__ = 'users'
     username = db.Column(db.String(255), primary_key=True)
-    password = db.Column(db.Text, nullable=False)  # In a real-world app, hash the password
-    token = db.Column(db.String(255), nullable=False)  # Assuming token should be non-nullable
+    password = db.Column(db.Text, nullable=False)
+    token = db.Column(db.String(255), nullable=False)
     songs = db.relationship('Song', backref='user', lazy=True)
     permission = db.Column(db.Boolean, nullable=False)
-    
+    picture = db.Column(db.String(255), default='default')  # Picture column added
+
     
     # Relationship for friendships
     friends = db.relationship('User', 
@@ -1518,6 +1519,44 @@ def import_spotify_playlist():
         flash(f'{invalid_items} imports did not meet the required format', 'warning')
 
     return jsonify({'message': 'Playlist uploaded successfully!'}), 200
+
+
+@app.route('/get_picture', methods=['GET'])
+def get_picture():
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    username = request.args.get('username')
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    return jsonify({'picture': user.picture}), 200
+
+
+@app.route('/set_picture', methods=['POST'])
+def set_picture():
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+
+    username = request.json.get('username')
+    new_picture = request.json.get('picture')
+    if not all([username, new_picture]):
+        return jsonify({'error': 'Username and picture are required'}), 400
+
+    user = User.query.filter_by(username=username).first()
+    if not user or user.token != token:
+        return jsonify({'error': 'Invalid token or user'}), 401
+
+    user.picture = new_picture
+    db.session.commit()
+
+    return jsonify({'message': 'Picture updated successfully'}), 200
 
 
 
