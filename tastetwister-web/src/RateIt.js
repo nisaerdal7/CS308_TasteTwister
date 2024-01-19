@@ -64,6 +64,7 @@ function RateIt() {
           .then((updatedData) => {
               setSongs(updatedData);
               setSelectedRating('');
+              hideEditPopup();
               //console.log("Updated songs: ", updatedData);
           })
           .catch((error) => console.error('Error fetching updated songs:', error));

@@ -26,7 +26,10 @@ from langchain.output_parsers import ResponseSchema, StructuredOutputParser
 from spotipy.oauth2 import SpotifyOAuth
 from spotipy import SpotifyOAuth, Spotify
 import spotipy.util as util
-
+from spotipy.oauth2 import SpotifyClientCredentials
+import spotipy
+import re
+import tempfile
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -34,18 +37,50 @@ bcrypt = Bcrypt(app)
 
 
 # Flask configurations
+
+scope="playlist-read-private"
+SPOTIPY_CLIENT_ID='bbdfbe5f9eff4726bcfed53dd23fd7bc'
+SPOTIPY_CLIENT_SECRET='083c4ad6e42745f2809a3624f2e51de7'
+SPOTIPY_REDIRECT_URI='https://google.com/callback/'
+
+os.environ["SPOTIPY_CLIENT_ID"] = SPOTIPY_CLIENT_ID
+os.environ["SPOTIPY_CLIENT_SECRET"] = SPOTIPY_CLIENT_SECRET
+os.environ["SPOTIPY_REDIRECT_URI"] = SPOTIPY_REDIRECT_URI
+
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(scope=scope))
+client_credentials_manager = SpotifyClientCredentials()
+sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+
+
+os.environ["SPOTIPY_CLIENT_ID"] = SPOTIPY_CLIENT_ID
+os.environ["SPOTIPY_CLIENT_SECRET"] = SPOTIPY_CLIENT_SECRET
+os.environ["SPOTIPY_REDIRECT_URI"] = SPOTIPY_REDIRECT_URI
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:backend777@35.240.109.106/tastetwister'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # Silence the deprecation warning
 app.config['SECRET_KEY'] = 'your_secret_key_here'
 app.config['UPLOAD_FOLDER'] = 'uploads'  # Folder to save uploaded files
 ALLOWED_EXTENSIONS = {'csv', 'json'}
 
-# Your application's Client ID and Client Secret
-SPOTIFY_CLIENT_ID = "8a9fb2659bdb46d6815580ec3ff4d2c6"
-SPOTIFY_CLIENT_SECRET = "33868db571fc4139b13a265fef72d4ab"
-SPOTIFY_REDIRECT_URI = "http://localhost:4000/callback"
+SPOTIFY_CLIENT_ID='bbdfbe5f9eff4726bcfed53dd23fd7bc'
+SPOTIFY_CLIENT_SECRET='083c4ad6e42745f2809a3624f2e51de7'
+SPOTIFY_REDIRECT_URI='https://google.com/callback/'
 
 os.environ["OPENAI_API_KEY"] = "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"
+
+def extract_music_info_from_results(results):
+    songs = []
+    for item in results['tracks']['items']:
+        track = item['track']
+        song_name = track['name']
+        album_name = track['album']['name']
+        performer = ', '.join([artist['name'] for artist in track['artists']])  # Join artist names
+        songs.append({
+            'track_name': song_name,
+            'album': album_name,
+            'performer': performer  # Now a string
+        })
+    return songs  # Returns a list of dictionaries
+
 
 db = SQLAlchemy(app)
 
@@ -606,72 +641,6 @@ def export_songs():
     }
 
     return Response(stream_with_context(generate()), headers=headers), 200
-
-
-# Spotify API authentication
-sp_oauth = SpotifyOAuth(SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, scope="playlist-read-private")
-
-
-@app.route('/login_spotify', methods=['POST'])
-def login_spotify():
-    auth_url = sp_oauth.get_authorize_url()
-    return jsonify({'spotify_auth_url': auth_url})
-
-
-@app.route('/import_spotify_playlist', methods=['POST'])
-def import_spotify_playlist():
-    data = request.get_json()
-    playlist_url = data.get('playlist_url')
-
-    if not playlist_url:
-        return jsonify({'error': 'Spotify playlist URL is missing'}), 400
-
-    # Extract playlist ID from the URL
-    playlist_id = get_playlist_id_from_url(playlist_url)
-
-    if not playlist_id:
-        return jsonify({'error': 'Invalid Spotify playlist URL'}), 400
-
-    # Retrieve additional data from the session
-    additional_data = session.pop('additional_data', {})
-
-    # Get the Spotify access token
-    access_token = sp_oauth.get_access_token(request.json.get('spotify_auth_code'))
-
-    if not access_token:
-        return jsonify({'error': 'Failed to obtain Spotify access token'}), 401
-
-    # Initialize Spotipy with the access token
-    sp = Spotify(auth=access_token)
-
-    # Get tracks from the playlist
-    try:
-        playlist_tracks = sp.playlist_tracks(playlist_id)
-        tracks = playlist_tracks['items']
-    except Exception as e:
-        return jsonify({'error': f'Error retrieving playlist tracks: {str(e)}'}), 500
-
-    for track in tracks:
-        track_info = track['track']
-        track_name = track_info['name']
-        performer = track_info['artists'][0]['name']
-        album = track_info['album']['name']
-        rating = None
-
-        # Add or update the song in the database
-        add_or_update_song(track_name, performer, album, rating, additional_data.get('username'))
-
-    return jsonify({'message': 'Spotify playlist imported successfully!'}), 200
-
-
-def get_playlist_id_from_url(playlist_url):
-    # Extract playlist ID from the Spotify playlist URL
-    parts = playlist_url.split('/')
-    if 'playlist' in parts:
-        index = parts.index('playlist')
-        if index + 1 < len(parts):
-            return parts[index + 1]
-    return None
 
 
 # Route for getting user's top 3 artists and their songs
@@ -1465,16 +1434,82 @@ def find_unheard_artists():
 
     artist_song = Song.query.with_entities(Song.performer, Song.track_name)\
         .filter(
-            Song.performer.in_(artists)
-            
+            Song.performer.in_(artists),
+            Song.rating == 5
         ).order_by(func.random()).first()
-    print(artist_song)
 
     if artist_song:
         artist, song = artist_song
         return jsonify({'artist': artist, 'song': song}), 200
     else:
         return jsonify({}), 200
+
+
+@app.route('/import_spotify_playlist', methods=['POST'])
+def import_spotify_playlist():
+    # Validate the token
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 402
+
+    user = User.query.filter_by(token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid token'}), 401
+
+    # Retrieve the playlist URL from the request
+    data = request.json
+    playlist_url = data.get('playlist_url')
+    if not playlist_url:
+        return jsonify({'error': 'Playlist URL is required'}), 400
+
+    # Extract the playlist ID from the URL
+    match = re.search(r"playlist\/([0-9A-Za-z]+)", playlist_url)
+    if not match:
+        return jsonify({'error': 'Invalid playlist URL'}), 400
+
+    playlist_id = match.group(1)
+
+    # Fetch the playlist data using the Spotify API
+    try:
+        results = sp.playlist(playlist_id)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+    # Extract music information
+    extracted_songs = extract_music_info_from_results(results)
+
+    # Initialize count for invalid items
+    invalid_items = 0
+
+    # Iterate through the songs and add or update each
+    for song in extracted_songs:
+        try:
+            track_name = song['track_name']
+            performer = song['performer']
+            album = song['album']
+
+            # Validate that the fields are strings
+            if not all(isinstance(field, str) for field in [track_name, performer, album]):
+                raise ValueError("Invalid data type for song fields.")
+
+            # Add or update the song in the database
+            add_or_update_song(track_name, performer, album, None, user.username)
+
+        except (KeyError, ValueError) as e:
+            invalid_items += 1
+            # Optionally log the error or error message
+            # print("Error processing song:", e)
+            continue
+
+    # Commit changes to the database
+    db.session.commit()
+
+    # Flash a message if some items were invalid
+    if invalid_items > 0:
+        flash(f'{invalid_items} imports did not meet the required format', 'warning')
+
+    return jsonify({'message': 'Playlist uploaded successfully!'}), 200
+
 
 
 

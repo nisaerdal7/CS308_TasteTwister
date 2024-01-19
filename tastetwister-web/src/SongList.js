@@ -4,6 +4,7 @@ import editIcon from './images/edit-icon.png'; // Adjust the path based on your 
 import deleteIcon from './images/delete-icon.webp';
 import downloadIcon from './images/download-icon.png'; 
 import backIcon from './images/back-icon.png';
+import spotifyIcon from './images/spotify-icon.png';
 
 function SongList() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -11,6 +12,7 @@ function SongList() {
   const [selectedSongId, setSelectedSongId] = useState(0);
   const [selectedArtist, setSelectedArtist] = useState('');
   const [selectedAlbum, setSelectedAlbum] = useState('');
+  const [playlistURL, setPlaylistURL] = useState('');
 
   const [isPopupVisible, setPopupVisible] = useState(false);
   const [isManualPopupVisible, setManualPopupVisible] = useState(false);
@@ -18,6 +20,7 @@ function SongList() {
   const [isEditPopupVisible, setEditPopupVisible] = useState(false);
   const [isExportPopupVisible, setExportPopupVisible] = useState(false);
   const [isDeletePopupVisible, setDeletePopupVisible] = useState(false);
+  const [isPlaylistURLPopupVisible, setPlaylistURLPopupVisible] = useState(false);
 
   const [songEntry, setSongEntry] = useState({
     track_name: "",
@@ -44,6 +47,9 @@ function SongList() {
 
   const hidePopup = () => {
     setPopupVisible(false);
+  };
+  const showPlaylistURLPopup = () => {
+    setPlaylistURLPopupVisible(true);
   };
 
   const showEditPopup = (songId) => {
@@ -275,6 +281,73 @@ function SongList() {
 
   };
 
+  const handlePlaylistURLChange = (e) => {
+    setPlaylistURL(e.target.value);
+  };
+
+  const handlePlaylistSubmit = () => {
+    if (playlistURL.trim() !== '') {
+      handleSubmitURL(playlistURL);
+      setPlaylistURLPopupVisible(false);
+    }
+  };
+
+  const hideURLPopup = () => {
+    setPlaylistURLPopupVisible(false);
+  };
+
+  const handleSubmitURL = async (playlistUrl) => {
+    try {
+      const storedToken = localStorage.getItem('token');
+      
+      // Validate the token
+      if (!storedToken) {
+        console.error('Authorization token is required');
+        return;
+      }
+  
+      // Prepare the request body
+      const requestBody = {
+        playlist_url: playlistUrl
+      };
+  
+      // Make a POST request to the Flask backend
+      const response = await fetch('http://127.0.0.1:5000/import_spotify_playlist', {
+        method: 'POST',
+        headers: {
+          'Authorization': storedToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+  
+      if (!response.ok) {
+        // Handle error if the response status is not OK (2xx)
+        const errorMessage = await response.text();
+        throw new Error(`Failed to import playlist: ${errorMessage}`);
+      }
+      else{
+        fetchSongs()
+        .then((updatedData) => {
+            setSongs(updatedData);
+        })
+        setPlaylistURL('');
+        alert("The Spotify playlist is imported successfully!");
+      }
+  
+      // Parse the JSON response (if needed)
+      const responseData = await response.json();
+      console.log(responseData);
+  
+      // Handle the response data as needed
+  
+    } catch (error) {
+      console.error('Error:', error.message);
+      alert(error.message);
+      // Handle error as needed
+    }
+  };
+
   const submitSong = () => {
     // Check if any of the fields are empty
     if (!songEntry.track_name || !songEntry.performer || !songEntry.album) {
@@ -462,10 +535,15 @@ function SongList() {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
+        <button className="spotify-button" onClick={showPlaylistURLPopup}>
+        <img src={spotifyIcon} alt="Spotify Icon" 
+        style={{ width: '20px', height: '20px' }} />
+        </button>
         <button className="add-button" onClick={showPopup}>
           +
         </button>
-        <button className="add-button" onClick={()=>setExportPopupVisible(true)}>
+        
+        <button className="spotify-button" onClick={()=>setExportPopupVisible(true)}>
         <img
             src={downloadIcon}
             alt="Download Icon"
@@ -690,7 +768,21 @@ function SongList() {
     <button onClick={submitSpotifySong}>Submit</button>
   </div>
 )}
-
+{isPlaylistURLPopupVisible && (
+        <div className="popup">
+          <button className="close-button" onClick={hideURLPopup}>
+            X
+          </button>
+          <input
+            type="text"
+            placeholder="Enter your Spotify playlist URL"
+            className="url-input"
+            value={playlistURL}
+            onChange={handlePlaylistURLChange}
+          />
+          <button onClick={handlePlaylistSubmit}>Submit</button>
+        </div>
+      )}
 
 
 {isEditPopupVisible && (
