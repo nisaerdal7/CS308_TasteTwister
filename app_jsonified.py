@@ -338,6 +338,10 @@ def logout():
 def songs():
     # Handle GET requests
     if request.method == 'GET':
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({'error': 'Authorization token is required'}), 401
+        
         username = request.args.get('username')
 
         if not username:
@@ -357,7 +361,6 @@ def songs():
     ]), 200
 
     # Handle POST requests
-    # Does not have token authentication because of seeing friends songs logic
     if request.method == 'POST':
         token = request.headers.get('Authorization')
         if not token:
@@ -431,11 +434,14 @@ def list_most_relevant_songs(track_name, performer, album):
     return []
 
 
-# Does not have token authentication because of seeing friends songs logic
 @app.route('/songs/unrated', methods=['GET'])
 def get_unrated_songs():
     # Handle GET requests for unrated songs
     if request.method == 'GET':
+        token = request.headers.get('Authorization')
+        if not token:
+            return jsonify({'error': 'Authorization token is required'}), 401
+        
         username = request.args.get('username')
 
         if not username:
@@ -805,9 +811,12 @@ def respond_invite():
     return jsonify({'message': 'Invite responded'}), 200
 
 
-# Not tokenized due to friend list viewing capability at profiles
 @app.route('/friends/<username>', methods=['GET'])
 def view_friends(username):
+    token = request.headers.get('Authorization')
+    if not token:
+        return jsonify({'error': 'Authorization token is required'}), 401
+    
     user = User.query.filter_by(username=username).first()
     if not user:
         return jsonify({'message': 'User not found'}), 404
@@ -1420,7 +1429,7 @@ def find_unheard_artists():
     if not user:
         return jsonify({'error': 'Invalid token'}), 401
 
-    one_week_ago = datetime.utcnow() - timedelta(days=7)
+    one_week_ago = datetime.utcnow()
 
     artists = Song.query.with_entities(Song.performer)\
         .filter(
