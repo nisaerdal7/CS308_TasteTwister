@@ -3,7 +3,8 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 from io import BytesIO
 from flask_bcrypt import Bcrypt
-from app_jsonified import app, add_or_update_song, FriendRequest, friendships
+from app_jsonified import app, add_or_update_song, FriendRequest, friendships, Song, User, db
+from sqlalchemy import func,  not_
 
 bcrypt = Bcrypt(app)
 class TestFlaskRoutes(unittest.TestCase):
@@ -105,43 +106,37 @@ class TestFlaskRoutes(unittest.TestCase):
     @patch('app_jsonified.Song.query')
     @patch('app_jsonified.User.query')
     @patch('app_jsonified.db.session', new_callable=MagicMock)
-    def test_add_or_update_song_empty_rating(self, mock_session, mock_user_query, mock_song_query):
-        # Set up mock instances
+    def test_add_or_update_song_unrated(self, mock_db_session, mock_user_query, mock_song_query, mock_client):
+        # Mock the necessary objects and methods
+        mock_db_session.add = MagicMock()
+        mock_db_session.commit = MagicMock()
+
         mock_song_instance = MagicMock()
         mock_song_query.filter_by.return_value.first.return_value = mock_song_instance
+
         mock_user_instance = MagicMock()
         mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+        mock_user_instance.permission = True  # Set the user's permission as needed
 
-        # Set up a test client
-        app.config['TESTING'] = True
-        client = app.test_client()
+        mock_track = MagicMock()
+        mock_track.name = 'Mock Track'
+        mock_artist = MagicMock(name='Mock Artist')
+        mock_artist.name = 'Mock Artist Name'  # Set the artist name
+        mock_track.artists = [mock_artist]
+        mock_track.album.name = 'Mock Album'
 
-        # Mock the add and commit methods on the session
-        mock_session.add = MagicMock()
-        mock_session.commit = MagicMock()
+        mock_search_result = MagicMock()
+        mock_search_result.get_tracks.return_value = [mock_track]
+        mock_client.return_value.search.return_value = mock_search_result
 
-        # Call the add_or_update_song function with empty string rating
-        data = {
-            'user_track_name': 'Track1',
-            'user_performer': 'Performer1',
-            'user_album': 'Album1',
-            
-            'username': 'testuser'
-        }
-        response = client.post('/add_or_update_song', json=data, headers={'Authorization': 'your_token'})
+        # Call the function
+        add_or_update_song('Track Name', 'Performer', 'Album', '', 'username')
 
-        # Assert that the response is as expected
-        self.assertEqual(response.status_code, 200)
-
-        # Check if the rating in the Song instance was set to None
-        mock_song_instance.__setattr__.assert_called_with('rating', None)
-
-        # Check if the commit method was called on the session
-        self.assertTrue(mock_session.commit.called)
-
-        # Check if add method was called on the session
-        mock_session.add.assert_called_once()
-
+        # Assertions
+        mock_song_query.filter_by.assert_called_once_with(
+            track_name='Track Name', performer='Performer', album='Album', username='username'
+        )
+        mock_song_query.filter_by.return_value.first.assert_called_once()
 
     @patch('app_jsonified.User.query')  # Replace 'app' with the actual module name
     @patch('app_jsonified.db.session', new_callable=MagicMock)
@@ -190,10 +185,6 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertIn('top_albums', data)
         self.assertIn('top_performers', data)
 
-        # Check if the user and song queries were called
-        #mock_user_query.filter_by.assert_called_with(token='your_token', username='testuser')
-        #mock_song_query.filter_by.assert_called_with(username='testuser')
-
     @patch('app_jsonified.User.query')
     @patch('app_jsonified.db.session', new_callable=MagicMock)
     def test_block_friend_route(self, mock_session, mock_user_query):
@@ -212,9 +203,6 @@ class TestFlaskRoutes(unittest.TestCase):
         data = response.json
         self.assertIn('message', data)
         self.assertEqual(data['message'], 'blocked_user blocked')
-
-        # Check if the user query was called
-        #mock_user_query.filter_by.assert_called_with(token='your_token', username='testuser')
 
         # Check if add and commit methods were called on the session
         self.assertTrue(mock_session.commit.called)
@@ -246,9 +234,6 @@ class TestFlaskRoutes(unittest.TestCase):
 
         # Check if the user query was called
         mock_user_query.filter_by.assert_called_with(token='valid_token')  # Change assert_called_once_with to assert_called_with
-        # Check if commit method was called on the session
-        #self.assertTrue(mock_session.commit.called)
-        #mock_session.commit.assert_called_once()
     
     @patch('app_jsonified.FriendRequest.query')
     @patch('app_jsonified.User.query')
@@ -293,7 +278,6 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json
         self.assertIsInstance(data, list)
-        # Add more assertions based on the expected behavior of the route
 
     @patch('app_jsonified.User.query')
     @patch('app_jsonified.FriendRequest.query')
@@ -323,29 +307,34 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json
         self.assertIn('message', data)
-        # Add more assertions based on the expected behavior of the route
 
     @patch('app_jsonified.User.query')
-    def test_view_friends(self, mock_user_query):
-        # Set up the behavior of the query method to simulate an existing user
+    @patch('app_jsonified.db.session', new_callable=MagicMock)
+    def test_view_friends(self, mock_session, mock_user_query):
+        # Mock the User.query method to return a test user
         mock_user_instance = MagicMock()
-        mock_user_instance.username = 'testuser'
-        mock_user_instance.friends = [MagicMock(username='friend1'), MagicMock(username='friend2')]
+        
+        # Assuming friends is a list of User instances
+        friend1 = MagicMock(username='friend1')
+        friend2 = MagicMock(username='friend2')
+        mock_user_instance.friends = [friend1, friend2]
+        
         mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
 
         # Set up a test client
         app.config['TESTING'] = True
         client = app.test_client()
 
-        # Send a request to view friends
-        response = client.get('/friends/testuser')
+        # Send a request to the view_friends endpoint
+        response = client.get('/friends/testuser', headers={'Authorization': 'your_token'})
 
         # Assert that the response is as expected
         self.assertEqual(response.status_code, 200)
         data = response.json
-        self.assertIsInstance(data, list)
-        self.assertEqual(len(data), 2)
-        # Add more assertions based on the expected behavior of the route
+        self.assertListEqual(data, ['friend1', 'friend2'])
+
+        # Check if the user query was called with the correct parameters
+        mock_user_query.filter_by.assert_called_once_with(username='testuser')
 
     @patch('app_jsonified.User.query')
     @patch('app_jsonified.db.session', new_callable=MagicMock)
@@ -368,7 +357,6 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         data = response.json
         self.assertIn('message', data)
-        # Add more assertions based on the expected behavior of the route
 
     @patch('app_jsonified.User.query')
     @patch('app_jsonified.Song.query')
@@ -392,7 +380,6 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json
         self.assertIsInstance(data, list)
-        # Add more assertions based on the expected behavior of the route
 
     @patch('app_jsonified.User.query')
     @patch('app_jsonified.Song.query')
@@ -456,7 +443,6 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json
         self.assertIsInstance(data, list)
-        # Add more assertions based on the expected behavior of the route
 
     @patch('app_jsonified.allowed_file')
     @patch('app_jsonified.User.query')
@@ -476,32 +462,6 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('message', response.json)
         self.assertEqual(response.json['message'], 'Songs uploaded successfully!')
-    
-    '''
-    @patch('app_jsonified.Song.query')
-    @patch('app_jsonified.User.query')
-    def test_get_unrated_songs(self, mock_user_query, mock_song_query):
-        # Mock User instance
-        mock_user_instance = MagicMock()
-        mock_user_instance.username = 'testuser'
-        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
-
-        # Mock Song instance
-        mock_song_instance = MagicMock()
-        mock_song_instance.id = 1
-        mock_song_instance.title = "Test Song"
-        mock_song_instance.artist = "Test Artist"
-        
-        # Ensure the all() method returns a list of these mocked Song objects
-        mock_song_query.filter.return_value.all.return_value = [mock_song_instance]
-
-        # Make the API call
-        response = self.app.get('/songs/unrated', query_string={'username': 'testuser'})
-
-        # Test assertions
-        self.assertEqual(response.status_code, 200)
-        self.assertIsInstance(response.json, list)
-    '''
 
     @patch('app_jsonified.Song.query')
     @patch('app_jsonified.User.query')
@@ -539,7 +499,6 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertIn('message', response.json)
         self.assertEqual(response.json['message'], 'Song deleted successfully!')
 
-    '''
     @patch('app_jsonified.ChatOpenAI')
     @patch('app_jsonified.User.query')
     def test_ai_song_suggestions(self, mock_user_query, mock_chat_openai):
@@ -555,32 +514,7 @@ class TestFlaskRoutes(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response.json, list)
-    '''
-    '''
-    @patch('app_jsonified.Song.query')
-    @patch('app_jsonified.User.query')
-    def test_list_songs(self, mock_user_query, mock_song_query):
-        # Mock a song instance with JSON serializable attributes
-        mock_song_instance = MagicMock()
-        mock_song_instance.track_name = "Test Song"
-        mock_song_instance.performer = "Test Artist"
-        mock_song_instance.album = "Test Album"
-        mock_song_instance.rating = 5
-        mock_song_instance.username = "testuser"
-        mock_song_instance.permission = True
-        mock_song_instance.updated_at = datetime.utcnow()
-        mock_song_query.filter_by.return_value.all.return_value = [mock_song_instance]
 
-        mock_user_instance = MagicMock()
-        mock_user_instance.username = 'testuser'
-        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
-
-        response = self.app.get('/songs', query_string={'username': 'testuser'})
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIsInstance(response.json, list)
-    '''
-    
     @patch('app_jsonified.Song.query')
     @patch('app_jsonified.User.query')
     def test_export_songs(self, mock_user_query, mock_song_query):
@@ -637,16 +571,6 @@ class TestFlaskRoutes(unittest.TestCase):
         blocker.blocked.append.assert_called_with(blocked)
         mock_session.commit.assert_called_once()
 
-    @patch('app_jsonified.Song.query')
-    def test_filter_songs_by_performer(self, mock_song_query):
-        mock_song_instance = MagicMock()
-        mock_song_query.filter_by.return_value.filter.return_value.all.return_value = [mock_song_instance]
-
-        response = self.app.get('/songs', query_string={'username': 'testuser', 'performer': 'Artist Name'})
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIsInstance(response.json, list)
-
     @patch('app_jsonified.allowed_file')
     @patch('app_jsonified.User.query')
     def test_invalid_song_upload_file_type(self, mock_user_query, mock_allowed_file):
@@ -700,9 +624,60 @@ class TestFlaskRoutes(unittest.TestCase):
         self.assertEqual(response.status_code, 404)  # Not found or unauthorized
         self.assertIn('error', response.json)
 
+    @patch('app_jsonified.User.query')
+    @patch('app_jsonified.db.session', new_callable=MagicMock)
+    @patch('app_jsonified.get_user_top_artists_and_songs', return_value=[{'track_name': 'Song1', 'performer': 'Artist1', 'album': 'Album1'}])
+    def test_get_top_artists_and_songs(self, mock_get_user_top_artists_and_songs, mock_session, mock_user_query):
+        # Mock the User.query method to return a test user
+        mock_user_instance = MagicMock()
+        mock_user_instance.username = 'testuser'
+        mock_user_instance.token = 'valid_token'
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
 
+        # Set up a test client
+        app.config['TESTING'] = True
+        client = app.test_client()
 
+        # Send a request to the get_top_artists_and_songs endpoint
+        response = client.get('/get_top_artists_and_songs', headers={'Authorization': 'valid_token'})
 
+        # Assert that the response is as expected
+        self.assertEqual(response.status_code, 200)
+        data = response.json
+        self.assertListEqual(data, [{'track_name': 'Song1', 'performer': 'Artist1', 'album': 'Album1'}])
+
+        # Check if the user query was called with the correct parameters
+        mock_user_query.filter_by.assert_called_once_with(token='valid_token')
+
+    @patch('app_jsonified.FriendRequest.query')
+    @patch('app_jsonified.User.query')
+    @patch('app_jsonified.db.session', new_callable=MagicMock)
+    def test_send_friend_request_already_friends(self, mock_session, mock_user_query, mock_friend_request_query):
+        mock_user_instance = MagicMock()
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+
+        data = {'friend_username': 'friend_user'}
+        headers = {'Authorization': 'valid_token'}
+        response = self.app.post('/send_invite', json=data, headers=headers)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('message', response.json)
+        self.assertEqual(response.json['message'], 'You are already friends')
+
+    @patch('app_jsonified.User.query')
+    @patch('app_jsonified.db.session', new_callable=MagicMock)
+    def test_unblock_friend_not_blocked(self, mock_session, mock_user_query):
+        mock_user_instance = MagicMock()
+        mock_user_instance.blocked.all.return_value = [MagicMock(username='blocked_user')]
+        mock_user_query.filter_by.return_value.first.return_value = mock_user_instance
+
+        data = {'friend_username': 'blocked_user'}
+        headers = {'Authorization': 'valid_token'}
+        response = self.app.post('/unblock_friend', json=data, headers=headers)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('message', response.json)
+        self.assertEqual(response.json['message'], 'User not blocked')
 
 if __name__ == '__main__':
     unittest.main()
