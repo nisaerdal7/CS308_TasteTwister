@@ -8,6 +8,7 @@ function StatisticsPage() {
   return (
     <div className="taste-twist-page">
       <Sidebar />
+      <h5 >Your statistics!</h5>
       <StatsPage />
     </div>
   );

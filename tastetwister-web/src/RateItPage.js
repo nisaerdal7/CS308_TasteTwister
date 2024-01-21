@@ -9,6 +9,7 @@ function RateItPage() {
     return (
       <div className="rate-it">
         <Sidebar/>
+        <h5> Rate your unrated songs!</h5>
         <RateIt/>
       </div>
     );

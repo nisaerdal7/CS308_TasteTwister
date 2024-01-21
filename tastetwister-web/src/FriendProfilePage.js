@@ -11,7 +11,6 @@ const FriendProfilePage = () => {
   return (
     <div className="friend-page">
     <Sidebar />
-      <h2>{`Profile Page for ${friendName || 'Unknown Friend'}`}</h2>
       {/* Add your customized content based on the friend's name */}
       <FriendProfile username={friendName}/>
     </div>

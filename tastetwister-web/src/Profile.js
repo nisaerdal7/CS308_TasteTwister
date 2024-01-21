@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect} from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Profile.css';
-import myProfileIcon from './images/myprofileicon.jpg';
+import * as icons from './images'; // Update this path accordingly
+import editIcon from './images/edit-icon.png';
 import Sidebar from './Sidebar';
 
 
@@ -16,12 +17,14 @@ const Profile = () => {
   const [showRemoveConfirmation, setShowRemoveConfirmation] = useState(false);
   const [showBlockConfirmation, setShowBlockConfirmation] = useState(false);
   const [selectedFriend, setSelectedFriend] = useState('');
+  const [myProfileIcon, setProfileIcon] = useState('');
 
   useEffect(() => {
     fetchRequests();
     fetchFriends();
    
     fetchBlockedFriends();
+    fetchProfileIcon();
   }, []);
 
   const fetchRequests = () => {
@@ -237,6 +240,70 @@ const Profile = () => {
     navigate(`/friend/${encodeURIComponent(friend)}`);
   };
 
+  const fetchProfileIcon = () => {
+    const storedToken = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+
+    fetch('http://127.0.0.1:5000/get_picture?username=' + username, {
+      method: 'GET',
+      headers: {
+        'Authorization': storedToken,
+        'Content-Type': 'application/json',
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setProfileIcon(data.picture);
+      })
+      .catch((error) => console.error('Error fetching profile icon:', error));
+  };
+
+  // Function to get the corresponding image based on the string
+  const getProfileImage = (iconString) => {
+    switch (iconString) {
+      case 'default':
+        return icons.DefaultIcon;
+      case 'lofigirl':
+        return icons.LofiGirlIcon;
+      case 'lofiboy':
+        return icons.LofiBoyIcon;
+      default:
+        return icons.DefaultIcon;
+    }
+  };
+
+  const updatePicture = (selectedOption) => {
+    const storedToken = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+    fetch('http://127.0.0.1:5000/set_picture?username=' + username, {
+      method: 'POST',
+      headers: {
+        'Authorization': storedToken,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username: username, picture: selectedOption }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        // Handle the response if needed
+        console.log(data);
+        fetchProfileIcon();
+      })
+      .catch((error) => console.error('Error setting picture:', error));
+  };
+  
+
+  const handleOptionClick = (option) => {
+    setPopupOpen(false);
+    setSelectedOption(option);
+  
+    // Call your API to update the picture with the selected option
+    updatePicture(option);
+  };
+  
+
+  const [isPopupOpen, setPopupOpen] = useState(false);
+  const [selectedOption, setSelectedOption] = useState(null);
 
 
       return (
@@ -245,21 +312,43 @@ const Profile = () => {
           <div className="left-widget">
             <div className="profile-box">
               <div className="profile-header">
-                <img src={myProfileIcon} alt="Profile Icon" className="my-profile-icon" />
+              <img src={myProfileIcon ? getProfileImage(myProfileIcon) : null} alt="Profile Icon" className="my-profile-icon" />
+              <img src={editIcon} alt="Edit Icon" className="edit-profile-icon" onClick={() => { console.log('Edit icon clicked'); setPopupOpen(true); }} />
+
                 <h2>{username}'s Friends</h2>
               </div>
-
+              {isPopupOpen && (
+                <div className="icon-popup-container">
+                  <div className="profile-popup">
+                    <p>Choose an icon!</p>
+                    <div className="icon-buttons">
+                      <button onClick={() => handleOptionClick('default')}>
+                        <img src={icons.DefaultIcon} alt="Default Icon" style={{ width: '60px', height: '60px' }} />
+                      </button>
+                      <button onClick={() => handleOptionClick('lofigirl')}>
+                        <img src={icons.LofiGirlIcon} style={{ width: '60px', height: '60px' }} />
+                      </button>
+                      <button onClick={() => handleOptionClick('lofiboy')}>
+                        <img src={icons.LofiBoyIcon} style={{ width: '60px', height: '60px' }} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="profile-section">
       <ul>
         {friendsList.map((friend) => (
-          <li key={friend} className="friend-item" onClick={() => handleFriendClick(friend)}>
-            {friend}
+          <li key={friend} className="friend-item" >
+          <div className="friend-options" onClick={() => handleFriendClick(friend)}>
+          {friend}
+          </div>
+
             <div className="friend-options">
               <span
                 className="remove-icon"
                 onClick={() => handleRemoveFriendClick(friend)}
               >
-                ❌  
+                ❌
               </span>
               <span
             className="icon-space" // Add a class for spacing
@@ -268,7 +357,7 @@ const Profile = () => {
                 className="block-icon"
                 onClick={() => handleBlockFriendClick(friend)}
               >
-                🚫  
+                🚫
               </span>
             </div>
           </li>

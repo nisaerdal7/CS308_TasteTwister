@@ -10,12 +10,37 @@
   height: 100vh;
 }
 
+.icon-popup-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000; /* Ensure it's above other elements */
+}
+
+.icon-buttons {
+  display: flex;
+  gap: 10px; /* Adjust the gap between buttons as needed */
+}
+
 .left-widget,
 .right-widget {
   width: 400px;
   height: 550px; /* Set a fixed height */
   overflow-y: auto; /* Enable vertical scrolling if content exceeds the height */
   margin: 0 20px;
+}
+
+.edit-profile-icon {
+  width: 20px; /* Set your desired width */
+  height: 20px; /* Set your desired height */
+  cursor: pointer; /* Add cursor pointer to indicate it's clickable */
+  margin-right: 15px; /* Adjust the margin as needed */
 }
 
 .profile-box {

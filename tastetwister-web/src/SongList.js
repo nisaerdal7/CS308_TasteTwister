@@ -178,8 +178,12 @@ function SongList() {
   const fetchSongs = () => {
     const storedUsername = localStorage.getItem('username');
     console.log(storedUsername);
+    const storedToken = localStorage.getItem('token');
     
     return fetch('http://127.0.0.1:5000/songs?username=' + storedUsername, {
+      headers:{
+        "Authorization": storedToken
+      },
       method: 'GET',
       credentials: 'include'
     })

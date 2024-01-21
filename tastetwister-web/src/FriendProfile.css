@@ -11,8 +11,8 @@
     overflow-y: auto; /* Change overflow property to auto */
     background-color: rgba(0, 0, 0, 0.5);
   }
-  
- 
+
+
   
   .friend-icon-container {
     text-align: center;
@@ -39,23 +39,64 @@
     background-color: rgba(0, 0, 0, 0.6);
     border-radius: 8px;
   }
-  .friend-song-table .column{
-    width: 50%;
-    text-align: left;
-    color: rgb(160, 160, 160);
-    
 
+  .friend-song-table th.title-column {
+    padding: 10px;
+    border: none; /* Remove borders around th elements */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid rgb(160, 160, 160, 0.3); /* Add a bottom border to th elements */
   }
+
+  .friend-song-table th.column {
+    padding: 10px;
+    border: none; /* Remove borders around th elements */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid rgb(160, 160, 160, 0.3); /* Add a bottom border to th elements */
+  }
+
+  .friend-song-table th.rating-column {
+    padding: 10px;
+    border: none; /* Remove borders around th elements */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-bottom: 1px solid rgb(160, 160, 160, 0.3); /* Add a bottom border to th elements */
+  }
+  
+  .friend-song-table .title-column {
+    width: 290px; /* Adjust the width to give more space to "title" */
+    text-align: left;
+    display: inline-block;
+    color: rgb(160, 160, 160);
+  }
+  
+  .friend-song-table .column {
+    width: 180px; /* Distribute the remaining width equally among "artist," "album," and "rating" */
+    text-align: left;
+    display: inline-block;
+    color: rgb(160, 160, 160);
+  }
+  .friend-song-table .rating-column {
+    width: 80px; /* Distribute the remaining width equally among "artist," "album," and "rating" */
+    text-align: center;
+    display: inline-block;
+    color: rgb(160, 160, 160);
+  }
+
   
   
   .friend-song-table th,
   .friend-song-table td {
-    padding: 5px; /* Reduced padding */
+    padding: 10px; /* Reduced padding */
     border: none;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    font-size: 14px; /* Adjusted font size */
+    font-size: 16px; /* Adjusted font size */
     
     color:rgb(160, 160, 160);
   }
